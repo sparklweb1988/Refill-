@@ -10,11 +10,7 @@
             <select name="facility" id="facility" class="form-select w-auto" onchange="this.form.submit()">
                 <option value="">All Facilities</option>
                 {% for facility in facilities %}
-                    <option value="{{ facility.id }}"
-                        {% if facility.id|stringformat:"s" == selected_facility %}
-                        selected
-                        {% endif %}
-                    >
+                    <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
                         {{ facility.name }}
                     </option>
                 {% endfor %}
@@ -26,7 +22,7 @@
     <div class="row g-3">
 
         <!-- Daily Expected -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-primary mb-3 shadow">
                 <div class="card-body text-center">
                     <h6 class="card-title">Today's Expected</h6>
@@ -36,7 +32,7 @@
         </div>
 
         <!-- Daily Refills -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-success mb-3 shadow">
                 <div class="card-body text-center">
                     <h6 class="card-title">Today's Refill</h6>
@@ -46,7 +42,7 @@
         </div>
 
         <!-- Monthly Missed -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-danger mb-3 shadow">
                 <div class="card-body text-center">
                     <h6 class="card-title">Missed This Month</h6>
@@ -56,19 +52,17 @@
         </div>
 
         <!-- IIT -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-dark mb-3 shadow border-danger">
                 <div class="card-body text-center">
                     <h6 class="card-title">IIT (≥ 28 Days)</h6>
-                    <h2 class="card-text text-danger fw-bold">
-                        {{ iit_total }}
-                    </h2>
+                    <h2 class="card-text text-danger fw-bold">{{ iit_total }}</h2>
                 </div>
             </div>
         </div>
 
         <!-- Weekly Expected -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-info mb-3 shadow">
                 <div class="card-body text-center">
                     <h6 class="card-title">Weekly Expected</h6>
@@ -78,7 +72,7 @@
         </div>
 
         <!-- Monthly Expected -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-dark bg-warning mb-3 shadow">
                 <div class="card-body text-center">
                     <h6 class="card-title">Monthly Expected</h6>
@@ -87,72 +81,46 @@
             </div>
         </div>
 
-        <!-- ============================= -->
-        <!-- 🔥 NEW VIRAL LOAD CARDS 🔥 -->
-        <!-- ============================= -->
-
         <!-- VL Eligible (Denominator) -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-secondary mb-3 shadow">
                 <div class="card-body text-center">
-                    <h6 class="card-title">
-                        VL Eligible ({{ current_quarter }} {{ current_year }})
-                    </h6>
-                    <h2 class="card-text">
-                        {{ vl_denominator }}
-                    </h2>
+                    <h6 class="card-title">VL Eligible (Samples Collected)</h6>
+                    <h2 class="card-text">{{ vl_denominator }}</h2>
                 </div>
             </div>
         </div>
 
         <!-- VL Collected (Numerator) -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-success mb-3 shadow">
                 <div class="card-body text-center">
-                    <h6 class="card-title">
-                        VL Collected ({{ current_quarter }} {{ current_year }})
-                    </h6>
-                    <h2 class="card-text">
-                        {{ vl_numerator }}
-                    </h2>
+                    <h6 class="card-title">VL Results Received</h6>
+                    <h2 class="card-text">{{ vl_numerator }}</h2>
                 </div>
             </div>
         </div>
 
         <!-- VL Coverage % -->
-        <div class="col-md-3">
+        <div class="col-sm-6 col-md-4">
             <div class="card text-white bg-dark mb-3 shadow border-success">
                 <div class="card-body text-center">
-                    <h6 class="card-title">
-                        VL Coverage %
-                    </h6>
-                    <h2 class="card-text fw-bold text-success">
-                        {{ vl_coverage }}%
-                    </h2>
+                    <h6 class="card-title">VL Coverage %</h6>
+                    <h2 class="card-text fw-bold text-success">{{ vl_coverage }}%</h2>
                 </div>
             </div>
         </div>
 
-
-        <!-- VL Suppression -->
-    <div class="col-md-3">
-        <div class="card text-white bg-primary mb-3 shadow border-light">
-            <div class="card-body text-center">
-                <h6 class="card-title">
-                    VL Suppression % ({{ current_quarter }} {{ current_year }})
-                </h6>
-                <h2 class="card-text fw-bold">
-                    {{ vl_suppression_rate }}%
-                </h2>
-                <small>
-                    Suppressed: {{ vl_suppressed }} / {{ vl_numerator }}
-                </small>
+        <!-- TPT Completion Rate % -->
+        <div class="col-sm-6 col-md-4">
+            <div class="card text-white bg-info mb-3 shadow border-primary">
+                <div class="card-body text-center">
+                    <h6 class="card-title">TPT Completion Rate %</h6>
+                    <h2 class="card-text fw-bold text-light">{{ tpt_completion_rate }}%</h2>
+                </div>
             </div>
         </div>
-    </div>
-
 
     </div>
-
 </div>
 {% endblock content %}

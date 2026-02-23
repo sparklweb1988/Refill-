@@ -4,7 +4,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>ART Treatment Tracker</title>
+    <title>Refill+</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap 5 CSS -->
@@ -18,6 +18,13 @@
         .navbar-brand {
             font-weight: 600;
             letter-spacing: 0.5px;
+        }
+
+        /* Larger navbar logo */
+        .navbar-logo {
+            width: 60px;  /* wider */
+            height: 60px; /* maintain aspect ratio */
+            object-fit: cover;
         }
 
         .nav-link.active {
@@ -38,6 +45,19 @@
         footer p {
             margin: 0;
         }
+
+        .dropdown-menu {
+            border-radius: 8px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Optional: responsive logo for small screens */
+        @media (max-width: 768px) {
+            .navbar-logo {
+                width: 45px;
+                height: 45px;
+            }
+        }
     </style>
 </head>
 
@@ -47,8 +67,9 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container">
 
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
-                ART Treatment Tracker
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+                <img src="{% static 'images/logo.jpeg' %}" alt="Logo" class="navbar-logo me-2">
+                <span>Refill+</span>
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -58,51 +79,72 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
 
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-                            href="{% url 'dashboard' %}">
-                            Dashboard
-                        </a>
-                    </li>
+                    {% if request.user.is_authenticated %}
 
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'refill_list' %}active{% endif %}"
-                            href="{% url 'refill_list' %}">
-                            Expected List
-                        </a>
-                    </li>
+                        <!-- Dashboard -->
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                               href="{% url 'dashboard' %}">Dashboard</a>
+                        </li>
 
-                    <!-- New Link for Daily Refills -->
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'daily_refill_list' %}active{% endif %}"
-                            href="{% url 'daily_refill_list' %}">
-                            Update Refills
-                        </a>
-                    </li>
+                        <!-- ================= REFILLS DROPDOWN ================= -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle 
+                               {% if request.resolver_match.url_name in 'refill_list daily_refill_list track_refills missed_refills' %}active{% endif %}"
+                               href="#" role="button" data-bs-toggle="dropdown">
+                                Refills
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'refill_list' %}">Expected List</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'daily_refill_list' %}">Update Refills</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'track_refills' %}">Track Refills</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'missed_refills' %}">Missed Refills</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <!-- ================= END REFILLS ================= -->
 
-                    <!-- Track Refills -->
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'track_refills' %}active{% endif %}"
-                            href="{% url 'track_refills' %}">
-                            Track Refills
-                        </a>
-                    </li>
+                        <!-- ================= VIRAL LOAD DROPDOWN ================= -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle
+                               {% if request.resolver_match.url_name == 'track_vl' %}active{% endif %}"
+                               href="#" role="button" data-bs-toggle="dropdown">
+                                Viral Load
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'track_vl' %}">Track Viral Load</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <!-- ================= END VIRAL LOAD ================= -->
 
-                    <!-- Missed Refills -->
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'missed_refills' %}active{% endif %}"
-                            href="{% url 'missed_refills' %}">
-                            Missed Refills
-                        </a>
-                    </li>
+                        <!-- Upload Excel visible only to superusers -->
+                        {% if request.user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'upload_excel' %}active{% endif %}"
+                               href="{% url 'upload_excel' %}">Upload Excel</a>
+                        </li>
+                        {% endif %}
 
-                    <!-- Upload Excel -->
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'upload_excel' %}active{% endif %}"
-                            href="{% url 'upload_excel' %}">
-                            Upload Excel
-                        </a>
-                    </li>
+                        <!-- Logout -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                        </li>
+
+                    {% else %}
+                        <!-- Show only login for anonymous users -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">Login</a>
+                        </li>
+                    {% endif %}
 
                 </ul>
             </div>
@@ -121,7 +163,7 @@
     <footer class="text-center">
         <div class="container">
             <p>
-                © 2026 ART Treatment Tracker | Multi-Facility Refill Monitoring System
+               Refill+ Ecews  © 2026 
             </p>
         </div>
     </footer>

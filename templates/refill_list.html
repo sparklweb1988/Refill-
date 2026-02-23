@@ -14,61 +14,6 @@
   .risk-high { background-color: #f8d7da; }
 </style>
 
-<!-- ================= SEARCH UNIQUE ID ================= -->
-<div class="mb-3 row g-2">
-  <div class="col-12 col-md-3">
-    <form method="get">
-      <input type="text" name="search_unique_id" 
-        value="{{ search_unique_id|default:'' }}" 
-        placeholder="Search Unique ID" class="form-control" />
-
-      <!-- Preserve existing filters -->
-      <input type="hidden" name="facility" value="{{ selected_facility }}">
-      <input type="hidden" name="case_manager" value="{{ selected_case_manager }}">
-      <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-      <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-      <button type="submit" class="btn btn-primary mt-2 w-100">Search</button>
-    </form>
-  </div>
-</div>
-
-<!-- ================= FILTERS ================= -->
-<form method="get" class="mb-3 row g-2 align-items-center">
-  <div class="col-12 col-md-3">
-    <select name="facility" onchange="this.form.submit()" class="form-select">
-      <option value="">All Facilities</option>
-      {% for facility in facilities %}
-        <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %} selected {% endif %}>
-          {{ facility.name }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="col-12 col-md-3">
-    <select name="case_manager" onchange="this.form.submit()" class="form-select">
-      <option value="">All Case Managers</option>
-      {% for manager in case_managers %}
-        <option value="{{ manager }}" {% if manager == selected_case_manager %} selected {% endif %}>
-          {{ manager }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="col-12 col-md-2">
-    <input type="date" name="start_date" value="{{ selected_start_date }}" class="form-control">
-  </div>
-  
-  <div class="col-12 col-md-2">
-    <input type="date" name="end_date" value="{{ selected_end_date }}" class="form-control">
-  </div>
-
-  <div class="col-12 col-md-2">
-    <button type="submit" class="btn btn-danger w-100">Apply Filters</button>
-  </div>
-</form>
-
 <!-- ================= MOBILE CARDS ================= -->
 <div class="d-block d-md-none cards-container">
   {% for period in periods %}
@@ -77,14 +22,21 @@
         <h5>{{ period.name }} Expected ({{ period.page_obj.paginator.count }})</h5>
 
         {% for refill in period.page_obj %}
-          <small class="{% if refill.next_appointment and refill.next_appointment < today %}overdue{% elif refill.next_appointment and refill.next_appointment <= today|add:'7' %}iit-approaching{% endif %}">
+          <small class="{% if refill.next_appointment and refill.next_appointment < today %}overdue{% elif refill.next_appointment and refill.next_appointment <= seven_days_from_today %}iit-approaching{% endif %}">
             {{ refill.unique_id }} | {{ refill.facility.name }}<br>
-            Next: {{ refill.next_appointment|date:"Y-m-d" }} | Regimen: {{ refill.current_regimen }}<br>
+            Sex: {{ refill.sex }}<br>
+            Last Pickup: {{ refill.last_pickup_date|date:"Y-m-d" }}<br>
+            Next Appointment: {{ refill.next_appointment|date:"Y-m-d" }}<br>
+            Refill (Days): {{ refill.months_of_refill_days }}<br>
+            Regimen: {{ refill.current_regimen }}<br>
             Case Manager: {{ refill.case_manager }}<br>
+            ART Start: {{ refill.art_start_date|date:"Y-m-d" }}<br>
+            TPT Start: {{ refill.tpt_start_date|date:"Y-m-d" }}<br>
+            TPT Completion: {{ refill.tpt_completion_date|date:"Y-m-d" }}<br>
+            TPT Status: {{ refill.tpt_status }}<br>
             VL Status: {{ refill.vl_status }}<br>
 
-            <!-- Prediction -->
-            Missed Prediction:
+            Appointment adherence forecast:
             {% if refill.prediction_probability < 30 %}
               <span class="badge bg-success">{{ refill.prediction_probability }}%</span>
             {% elif refill.prediction_probability < 70 %}
@@ -106,23 +58,6 @@
           <small>No {{ period.name|lower }} expected refills</small>
         {% endfor %}
 
-        <!-- MOBILE PAGINATION -->
-        <nav aria-label="Page navigation" class="mt-2">
-          <ul class="pagination justify-content-center">
-            {% if period.page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?{% if search_unique_id %}search_unique_id={{ search_unique_id }}&{% endif %}{% if selected_facility %}facility={{ selected_facility }}&{% endif %}{% if selected_case_manager %}case_manager={{ selected_case_manager }}&{% endif %}{% if selected_start_date %}start_date={{ selected_start_date }}&{% endif %}{% if selected_end_date %}end_date={{ selected_end_date }}&{% endif %}{% if period.name == 'Daily' %}daily_page={{ period.page_obj.previous_page_number }}{% elif period.name == 'Weekly' %}weekly_page={{ period.page_obj.previous_page_number }}{% else %}monthly_page={{ period.page_obj.previous_page_number }}{% endif %}">Previous</a>
-              </li>
-            {% endif %}
-            <li class="page-item disabled"><span class="page-link">Page {{ period.page_obj.number }} of {{ period.page_obj.paginator.num_pages }}</span></li>
-            {% if period.page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?{% if search_unique_id %}search_unique_id={{ search_unique_id }}&{% endif %}{% if selected_facility %}facility={{ selected_facility }}&{% endif %}{% if selected_case_manager %}case_manager={{ selected_case_manager }}&{% endif %}{% if selected_start_date %}start_date={{ selected_start_date }}&{% endif %}{% if selected_end_date %}end_date={{ selected_end_date }}&{% endif %}{% if period.name == 'Daily' %}daily_page={{ period.page_obj.next_page_number }}{% elif period.name == 'Weekly' %}weekly_page={{ period.page_obj.next_page_number }}{% else %}monthly_page={{ period.page_obj.next_page_number }}{% endif %}">Next</a>
-              </li>
-            {% endif %}
-          </ul>
-        </nav>
-
       </div>
     </div>
   {% endfor %}
@@ -143,14 +78,18 @@
           <th class="text-danger">Next Appointment</th>
           <th>Regimen</th>
           <th>Case Manager</th>
-          <th>VL Eligibility Status</th> <!-- NEW COLUMN -->
-          <th>Missed Prediction %</th>
+          <th>ART Start</th>             <!-- Keep ART start -->
+          <th>TPT Start</th>             <!-- New -->
+          <th>TPT Completion</th>        <!-- New -->
+          <th>TPT Status</th>            <!-- New -->
+          <th>VL Status</th>
+          <th>Appointment Adherence %</th>
           <th>Action</th>
         </tr>
       </thead>
       <tbody>
         {% for refill in period.page_obj %}
-          <tr class="{% if refill.next_appointment and refill.next_appointment < today %}overdue{% elif refill.next_appointment and refill.next_appointment <= today|add:'7' %}iit-approaching{% endif %}">
+          <tr class="{% if refill.next_appointment and refill.next_appointment < today %}overdue{% elif refill.next_appointment and refill.next_appointment <= seven_days_from_today %}iit-approaching{% endif %}">
             <td>{{ refill.unique_id }}</td>
             <td>{{ refill.sex }}</td>
             <td>{{ refill.facility.name }}</td>
@@ -159,11 +98,11 @@
             <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
             <td>{{ refill.current_regimen }}</td>
             <td>{{ refill.case_manager }}</td>
-
-            <!-- VL Eligibility Status -->
+            <td>{{ refill.art_start_date|date:"Y-m-d" }}</td>
+            <td>{{ refill.tpt_start_date|date:"Y-m-d" }}</td>
+            <td>{{ refill.tpt_completion_date|date:"Y-m-d" }}</td>
+            <td>{{ refill.tpt_status }}</td>
             <td>{{ refill.vl_status }}</td>
-
-            <!-- Prediction Column -->
             <td>
               {% if refill.prediction_probability < 30 %}
                 <span class="badge bg-success">{{ refill.prediction_probability }}%</span>
@@ -173,7 +112,6 @@
                 <span class="badge bg-danger">{{ refill.prediction_probability }}%</span>
               {% endif %}
             </td>
-
             <td>
               {% if refill.missed_appointment %}
                 <span class="badge bg-danger">Missed Appointment</span><br>
@@ -183,36 +121,13 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="11" class="text-center">
+            <td colspan="15" class="text-center">
               No {{ period.name|lower }} expected refills
             </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
-
-    <!-- DESKTOP PAGINATION -->
-    <nav aria-label="Page navigation" class="mt-2">
-      <ul class="pagination justify-content-center">
-        {% if period.page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?{% if search_unique_id %}search_unique_id={{ search_unique_id }}&{% endif %}{% if selected_facility %}facility={{ selected_facility }}&{% endif %}{% if selected_case_manager %}case_manager={{ selected_case_manager }}&{% endif %}{% if selected_start_date %}start_date={{ selected_start_date }}&{% endif %}{% if selected_end_date %}end_date={{ selected_end_date }}&{% endif %}{% if period.name == 'Daily' %}daily_page={{ period.page_obj.previous_page_number }}{% elif period.name == 'Weekly' %}weekly_page={{ period.page_obj.previous_page_number }}{% else %}monthly_page={{ period.page_obj.previous_page_number }}{% endif %}">Previous</a>
-          </li>
-        {% endif %}
-        <li class="page-item disabled"><span class="page-link">Page {{ period.page_obj.number }} of {{ period.page_obj.paginator.num_pages }}</span></li>
-        {% if period.page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?{% if search_unique_id %}search_unique_id={{ search_unique_id }}&{% endif %}{% if selected_facility %}facility={{ selected_facility }}&{% endif %}{% if selected_case_manager %}case_manager={{ selected_case_manager }}&{% endif %}{% if selected_start_date %}start_date={{ selected_start_date }}&{% endif %}{% if selected_end_date %}end_date={{ selected_end_date }}&{% endif %}{% if period.name == 'Daily' %}daily_page={{ period.page_obj.next_page_number }}{% elif period.name == 'Weekly' %}weekly_page={{ period.page_obj.next_page_number }}{% else %}monthly_page={{ period.page_obj.next_page_number }}{% endif %}">Next</a>
-          </li>
-        {% endif %}
-      </ul>
-    </nav>
-
   {% endfor %}
 </div>
-
-<br><br>
-<a href="{% url 'refill_list' %}?download=true&facility={{ selected_facility }}&case_manager={{ selected_case_manager }}&start_date={{ selected_start_date }}&end_date={{ selected_end_date }}" class="btn btn-success">Download Excel</a>
-<br><br>
-
 {% endblock %}

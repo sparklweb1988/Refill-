@@ -16,7 +16,6 @@
             </div>
 
             <div class="card-body">
-
                 <form method="post">
                     {% csrf_token %}
 
@@ -115,6 +114,32 @@
                             <label class="form-label">Next Appointment</label>
                             <input type="text" class="form-control"
                                    value="{{ form.instance.next_appointment|date:'Y-m-d' }}" readonly>
+                        </div>
+
+                        <!-- TPT Start Date -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">TPT Start Date (yyyy-mm-dd)</label>
+                            {{ form.tpt_start_date }}
+                        </div>
+
+                        <!-- TPT Completion Date (manual entry) -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">TPT Completion Date (yyyy-mm-dd)</label>
+                            {{ form.tpt_completion_date }}
+                        </div>
+
+                        <!-- TPT Status Badge -->
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">TPT Status</label><br>
+                            {% if form.instance.tpt_status == "Completed" %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elif form.instance.tpt_status == "Ongoing" %}
+                                <span class="badge bg-warning text-dark">Ongoing</span>
+                            {% elif form.instance.tpt_status == "Overdue" %}
+                                <span class="badge bg-danger">Overdue</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Not Started</span>
+                            {% endif %}
                         </div>
 
                     </div>

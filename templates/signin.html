@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    .login-wrapper {
+        min-height: 80vh;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        border-radius: 12px;
+        overflow: hidden; /* ensures the image stays inside the card */
+    }
+
+    .login-card img.login-header {
+        width: 100%; /* full width */
+        height: 150px; /* adjust height as needed */
+        object-fit: cover; /* crops/resizes to fill nicely */
+        display: block;
+    }
+
+    .card-body {
+        padding: 1.5rem; /* optional: make body slightly tighter */
+    }
+</style>
+
+<div class="container login-wrapper d-flex justify-content-center align-items-center">
+    <div class="card shadow login-card">
+
+        <!-- Full-width Header Image -->
+        <img src="{% static 'images/logo.jpeg' %}" 
+             alt="Ecews Logo" 
+             class="login-header">
+
+        <div class="card-body text-center">
+            <h4 class="text-success mb-4">Welcome To Refill+ Tracking System</h4>
+            <h4 class="mb-4">Login</h4>
+
+            {% if error %}
+                <div class="alert alert-danger text-center">
+                    {{ error }}
+                </div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+
+                <!-- Username -->
+                <div class="mb-3 text-start">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-4 text-start">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="pw" class="form-control" required>
+                </div>
+
+                <!-- Submit -->
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-dark">
+                        Sign In
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

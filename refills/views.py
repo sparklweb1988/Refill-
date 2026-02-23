@@ -17,10 +17,39 @@ from datetime import datetime
 from .forms import UploadExcelForm
 from django.contrib import messages
 from openpyxl.styles import Font
-
+from django.core.exceptions import ValidationError
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate, login, logout
 
 
 # views.py
+
+
+
+
+
+
+def signin_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('pw')
+
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            login(request, user)
+            messages.success(request, 'Login successful!')
+            return redirect('dashboard')
+    return render(request, 'signin.html')
+
+
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, ' Logout successfully')
+    return redirect('login')
+
+
+
 
 
 from io import BytesIO
@@ -28,244 +57,138 @@ from io import BytesIO
 
 
 
+# ----------------------------
+# VALID REFILL MONTHS
+# ----------------------------
+
 
 VALID_REFILL_MONTHS = [0.5, 1, 2, 2.8, 3, 4, 5, 6]
 
-
-def import_refills_from_excel(file):
-    df = pd.read_excel(file)
-
-
-    # Updated required columns including the new VL columns
-
-    # ================= FILE SIZE CHECK =================
-    if file.size > 1073741824:  # 1GB
-        raise ValidationError("File size exceeds the maximum allowed limit of 1GB.")
-
-    # ================= SAFE FILE READ =================
-    file.seek(0)
-    df = pd.read_excel(BytesIO(file.read()))
-
+# ----------------------- Excel Import -----------------------
 def import_refills_from_excel(file):
     """
     Import refill data from Excel containing multiple facilities.
     Deletes old data per facility before inserting new rows.
+    Handles messy column names (extra spaces, newlines, capitalization).
     """
-
-    if file.size > 1073741824:
+    if file.size > 1073741824:  # 1GB
         raise ValidationError("File size exceeds the maximum allowed limit of 1GB.")
 
     file.seek(0)
     df = pd.read_excel(file)
 
+    # Normalize column names: strip spaces, remove newlines, lowercase
+    df.columns = df.columns.str.strip().str.replace('\n', '').str.replace('\r', '').str.lower()
 
-    # ================= REQUIRED COLUMNS =================
+    # Map of required columns (normalized)
+    required_columns_map = {
+        'unique id': 'unique id',
+        'last pickup date (yyyy-mm-dd)': 'last pickup date (yyyy-mm-dd)',
+        'months of arv refill': 'months of arv refill',
+        'current art regimen': 'current art regimen',
+        'case manager': 'case manager',
+        'sex': 'sex',
+        'current art status': 'current art status',
+        'facility name': 'facility name',
+        'art start date (yyyy-mm-dd)': 'art start date (yyyy-mm-dd)',
+        'date of viral load sample collection (yyyy-mm-dd)': 'date of viral load sample collection (yyyy-mm-dd)',
+        'current viral load (c/ml)': 'current viral load (c/ml)',
+        'date of tpt start (yyyy-mm-dd)': 'date of tpt start (yyyy-mm-dd)',
+        'tpt completion date (yyyy-mm-dd)': 'tpt completion date (yyyy-mm-dd)',
+    }
 
-    required_columns = [
-        'Unique Id',
-        'Last Pickup Date (yyyy-mm-dd)',
-        'Months of ARV Refill',
-        'Current ART Regimen',
-        'Case Manager',
-        'Sex',
-        'Current ART Status',
-        'Facility Name',
-        'ART Start Date (yyyy-mm-dd)',
-        'Date of Viral Load Sample Collection (yyyy-mm-dd)',
-    ]
+    # Check for missing columns
+    missing_columns = [col for col in required_columns_map.values() if col not in df.columns]
+    if missing_columns:
+        raise ValidationError(f"Missing column(s): {', '.join(missing_columns)}")
 
-    # Check all required columns exist
-    for col in required_columns:
-        if col not in df.columns:
-            raise ValidationError(f"Missing column: {col}")
-
-
-    # Only include Active / Active Restart patients
-
-
-    # ================= FILTER ACTIVE PATIENTS =================
-
-    # Filter only Active patients
-
-
-    df = df[df['Current ART Status'].isin(['Active', 'Active Restart'])]
-
+    # Only Active / Active Restart
+    df = df[df['current art status'].isin(['Active', 'Active Restart'])]
     if df.empty:
         raise ValidationError("No Active or Active Restart patients found.")
 
-
     # Clean facility names
-    df['Facility Name'] = df['Facility Name'].astype(str).str.strip()
-    facility_names = df['Facility Name'].unique()
-    facilities = Facility.objects.filter(name__in=facility_names)
-    if not facilities.exists():
-        raise ValidationError("No matching facilities found in database.")
-
-
-    # ================= TRACK DELETED FACILITIES =================
-    deleted_facilities = set()
-
-
-    facility_map = {f.name: f for f in facilities}
-
-    new_refills = []
-
-    for _, row in df.iterrows():
-        facility = facility_map.get(row['Facility Name'])
-        if not facility:
-            raise ValidationError(f"Facility not found: {row['Facility Name']}")
-
-        last_pickup = pd.to_datetime(row['Last Pickup Date (yyyy-mm-dd)']).date()
-        months = float(row['Months of ARV Refill'])
-        next_appointment = last_pickup + timedelta(days=months * 30)
-
-        # Parse new columns safely
-        art_start_date = pd.to_datetime(row['ART Start Date (yyyy-mm-dd)']).date() if pd.notnull(row['ART Start Date (yyyy-mm-dd)']) else None
-        vl_sample_collection_date = pd.to_datetime(row['Date of Viral Load Sample Collection (yyyy-mm-dd)']).date() if pd.notnull(row['Date of Viral Load Sample Collection (yyyy-mm-dd)']) else None
-
-        # Append refill object with new fields
-        new_refills.append(
-            Refill(
-                facility=facility,
-                unique_id=row['Unique Id'],
-
-                last_pickup_date=last_pickup,
-                months_of_refill_days=months,
-                next_appointment=next_appointment,
-                current_regimen=row['Current ART Regimen'],
-                case_manager=row['Case Manager'],
-                sex=row['Sex'],
-                current_art_status=row['Current ART Status'],
-                art_start_date=art_start_date,
-                vl_sample_collection_date=vl_sample_collection_date,
-
-                defaults={
-                    'last_pickup_date': last_pickup_date,
-                    'months_of_refill_days': months,  # store decimal value
-                    'next_appointment': next_appointment,
-                    'current_regimen': str(row['Current ART Regimen']).strip(),
-                    'case_manager': str(row['Case Manager']).strip(),
-                    'sex': str(row['Sex']).strip(),
-                    'current_art_status': row['Current ART Status'].strip(),
-                }
-
-    # Normalize facility names
-    df['Facility Name'] = df['Facility Name'].astype(str).str.strip().str.lower()
-
-    facilities = {
-        f.name.strip().lower(): f
-        for f in Facility.objects.all()
-    }
-
-    missing_facilities = set(df['Facility Name'].unique()) - set(facilities.keys())
-
+    df['facility name'] = df['facility name'].astype(str).str.strip()
+    facilities = {f.name.strip(): f for f in Facility.objects.filter(
+        name__in=df['facility name'].unique()
+    )}
+    missing_facilities = set(df['facility name'].unique()) - set(facilities.keys())
     if missing_facilities:
         raise ValidationError(
             f"These facilities do not exist in the system: {', '.join(missing_facilities)}"
         )
 
-    # Validate ALL rows before deleting anything
+    # Build Refill objects
     validated_rows = []
+    for _, row in df.iterrows():
+        unique_id = row['unique id']
 
-    for index, row in df.iterrows():
-        unique_id = row['Unique Id']
-
-        if pd.isnull(row['Last Pickup Date (yyyy-mm-dd)']):
-            raise ValidationError(
-                f"Missing Last Pickup Date for Unique Id {unique_id}"
-
-
-            )
-        )
-
-    # Delete existing refills for these facilities and bulk insert new ones
-    with transaction.atomic():
-        facility_ids = facilities.values_list('id', flat=True)
-        Refill.objects.filter(facility_id__in=facility_ids).delete()
-        Refill.objects.bulk_create(new_refills, batch_size=1000)
-
-    return len(new_refills)
-
-
-
-
+        # Last pickup date
         try:
-            last_pickup_date = pd.to_datetime(
-                row['Last Pickup Date (yyyy-mm-dd)']
-            ).date()
+            last_pickup_date = pd.to_datetime(row['last pickup date (yyyy-mm-dd)']).date()
         except Exception:
-            raise ValidationError(
-                f"Invalid Last Pickup Date format for Unique Id {unique_id}"
-            )
+            raise ValidationError(f"Invalid Last Pickup Date format for Unique Id {unique_id}")
 
+        # Refill months
         try:
-            months = int(row['Months of ARV Refill'])
+            months = float(row['months of arv refill'])
         except Exception:
-            raise ValidationError(
-                f"Invalid Months of ARV Refill for Unique Id {unique_id}"
-            )
-
+            raise ValidationError(f"Invalid Months of ARV Refill for Unique Id {unique_id}")
         if months not in VALID_REFILL_MONTHS:
             raise ValidationError(
-                f"Invalid refill duration {months} months "
-                f"for Unique Id {unique_id}. Allowed values: {VALID_REFILL_MONTHS}"
+                f"Invalid refill duration {months} months for Unique Id {unique_id}. "
+                f"Allowed values: {VALID_REFILL_MONTHS}"
             )
 
-        facility_obj = facilities[row['Facility Name']]
+        # Facility
+        facility_obj = facilities[row['facility name']]
 
+        # Next appointment
         refill_days = months * 30
         next_appointment = last_pickup_date + timedelta(days=refill_days)
+
+        # Optional VL fields
+        art_start_date = pd.to_datetime(row['art start date (yyyy-mm-dd)']).date() if pd.notnull(row['art start date (yyyy-mm-dd)']) else None
+        vl_sample_collection_date = pd.to_datetime(row['date of viral load sample collection (yyyy-mm-dd)']).date() if pd.notnull(row['date of viral load sample collection (yyyy-mm-dd)']) else None
+        vl_result = int(row['current viral load (c/ml)']) if pd.notnull(row['current viral load (c/ml)']) else None
+
+        # TPT fields
+        tpt_start_date = pd.to_datetime(row['date of tpt start (yyyy-mm-dd)']).date() if pd.notnull(row['date of tpt start (yyyy-mm-dd)']) else None
+        tpt_completion_date = pd.to_datetime(row['tpt completion date (yyyy-mm-dd)']).date() if pd.notnull(row['tpt completion date (yyyy-mm-dd)']) else None
+        tpt_expected_completion = tpt_start_date + timedelta(days=180) if tpt_start_date else None
 
         validated_rows.append(
             Refill(
                 facility=facility_obj,
                 unique_id=unique_id,
                 last_pickup_date=last_pickup_date,
+                months_of_refill_days=months,
                 next_appointment=next_appointment,
-                months_of_refill_days=refill_days,
-                current_regimen=row['Current ART Regimen'],
-                case_manager=str(row['Case Manager']).strip(),
-                sex=str(row['Sex']).strip(),
-                current_art_status=row['Current ART Status'].strip(),
+                current_regimen=str(row['current art regimen']).strip(),
+                case_manager=str(row['case manager']).strip(),
+                sex=str(row['sex']).strip(),
+                current_art_status=row['current art status'].strip(),
+                art_start_date=art_start_date,
+                vl_sample_collection_date=vl_sample_collection_date,
+                vl_result=vl_result,
+                tpt_start_date=tpt_start_date,
+                tpt_completion_date=tpt_completion_date,
+                tpt_expected_completion=tpt_expected_completion,
             )
         )
 
-    # Delete old data only after full validation
+    # Delete old data and bulk insert new
     facility_ids = {obj.facility.id for obj in validated_rows}
-
     with transaction.atomic():
         for facility_id in facility_ids:
             Refill.objects.filter(facility_id=facility_id).delete()
-
         Refill.objects.bulk_create(validated_rows, batch_size=1000)
 
-def upload_excel(request):
-    if request.method == 'POST':
-        form = UploadExcelForm(request.POST, request.FILES)
-        excel_file = request.FILES.get('file')
+    return len(validated_rows)
 
-        if excel_file and excel_file.size > 1073741824:  # 1GB
-            return render(request, 'upload.html', {
-                'form': form,
-                'error': "File size exceeds the 1GB limit."
-            })
-
-        if form.is_valid():
-            try:
-                import_refills_from_excel(excel_file)
-                return redirect('refill_list')
-            except ValidationError as e:
-                return render(request, 'upload.html', {
-                    'form': form,
-                    'error': str(e)
-                })
-        else:
-            return render(request, 'upload.html', {'form': form})
-    else:
-        form = UploadExcelForm()
-
-    return render(request, 'upload.html', {'form': form})
-
+# ----------------------------
+# EXCEL UPLOAD VIEW
+# ----------------------------
 def upload_excel(request):
     if request.method == 'POST':
         form = UploadExcelForm(request.POST, request.FILES)
@@ -276,120 +199,140 @@ def upload_excel(request):
 
         if form.is_valid():
             excel_file = form.cleaned_data['file']
-
-            try:
-                import_refills_from_excel(excel_file)
-                messages.success(request, "Excel uploaded and processed successfully!")
+            if excel_file.size > 1073741824:
+                messages.error(request, "File size exceeds the 1GB limit.")
                 return redirect('upload_excel')
 
+            try:
+                count = import_refills_from_excel(excel_file)
+                messages.success(
+                    request, f"Excel uploaded successfully! {count} records imported."
+                )
+                return redirect('upload_excel')
+            except ValidationError as e:
+                messages.error(request, str(e))
+                return redirect('upload_excel')
             except Exception as e:
                 messages.error(request, f"Upload failed: {str(e)}")
                 return redirect('upload_excel')
         else:
             messages.error(request, "Form validation failed.")
-            print("FORM ERRORS:", form.errors)
-
+            return redirect('upload_excel')
     else:
         form = UploadExcelForm()
-
     return render(request, 'upload.html', {'form': form})
 
-# ================================
-# DASHBOARD
-# ================================
+
+# ----------------------------
+# DASHBOARD VIEW
+# ----------------------------
 
 
 
+
+
+
+# ----------------------- Excel Export -----------------------
+def export_refills_to_excel(refills):
+    today = timezone.now().date()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Refills"
+    headers = [
+        'Unique ID','Facility','Sex','Current Regimen','Case Manager',
+        'Last Pickup','Next Appointment','Days Missed','VL Sample Date','VL Result',
+        'VL Eligibility','TPT Start','TPT Completion','TPT Status'
+    ]
+    ws.append(headers)
+    for r in refills:
+        r.calculate_dates()
+        days_missed = (timezone.now().date() - r.next_appointment).days if r.next_appointment and r.next_appointment < timezone.now().date() else 0
+        ws.append([
+            r.unique_id, r.facility.name if r.facility else "", r.sex, r.current_regimen, r.case_manager,
+            r.last_pickup_date.strftime("%Y-%m-%d") if r.last_pickup_date else "", 
+            r.next_appointment.strftime("%Y-%m-%d") if r.next_appointment else "",
+            days_missed,
+            r.vl_sample_collection_date.strftime("%Y-%m-%d") if r.vl_sample_collection_date else "",
+            r.vl_result or "",
+            r.vl_status,
+            r.tpt_start_date.strftime("%Y-%m-%d") if r.tpt_start_date else "",
+            r.tpt_completion_date.strftime("%Y-%m-%d") if r.tpt_completion_date else "",
+            r.tpt_status
+        ])
+    resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="Refills_{today}.xlsx"'
+    wb.save(resp)
+    return resp
+
+
+
+
+
+# ----------------------- Dashboard -----------------------
+from django.contrib.auth.decorators import login_required
+@login_required
 def dashboard(request):
     today = timezone.now().date()
     week_end = today + timedelta(days=7)
-
-    month_start = today.replace(day=1)
-    month_end = (today.replace(month=today.month+1, day=1) - timedelta(days=1)) if today.month != 12 else (today.replace(year=today.year+1, month=1, day=1) - timedelta(days=1))
-
     facility_id = request.GET.get("facility")
     facilities = Facility.objects.all()
-
-    refills = Refill.objects.filter(current_art_status__in=['Active','Active Restart'])
-    selected_facility_instance = None
+    refills = Refill.objects.filter(current_art_status__in=['Active', 'Active Restart'])
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
-        selected_facility_instance = Facility.objects.filter(id=facility_id).first()
 
-    # Monthly Missed
-    monthly_missed_total = refills.filter(
-        next_appointment__year=today.year,
-        next_appointment__month=today.month,
-        next_appointment__lt=today
-    ).filter(Q(last_pickup_date__lt=F('next_appointment')) | Q(last_pickup_date__isnull=True)).count()
+    # -----------------------------
+    # Daily / Weekly / Monthly Expected & Refill
+    # -----------------------------
+    daily_expected = refills.filter(next_appointment=today)
+    daily_refills = refills.filter(last_pickup_date=today)
+    weekly_expected = refills.filter(next_appointment__gte=today, next_appointment__lte=week_end)
+    month_start = today.replace(day=1)
+    month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+    monthly_expected = refills.filter(next_appointment__gte=month_start, next_appointment__lte=month_end)
 
-    # IIT ≥28 days
-    iit_total = sum(
-        1 for r in refills.filter(next_appointment__lt=today)
-        if r.next_appointment and (today - r.next_appointment).days >= 28
-    )
+    # -----------------------------
+    # Missed & IIT
+    # -----------------------------
+    monthly_missed_total = refills.filter(next_appointment__month=today.month, next_appointment__lt=today).count()
+    iit_total = sum(1 for r in refills if r.next_appointment and (today - r.next_appointment).days >= 28)
 
-    # ====================== VL Quarterly Coverage ======================
-    if today.month in [1,2,3]:
-        current_quarter = "Q1"
-    elif today.month in [4,5,6]:
-        current_quarter = "Q2"
-    elif today.month in [7,8,9]:
-        current_quarter = "Q3"
-    else:
-        current_quarter = "Q4"
+    # -----------------------------
+    # VL coverage
+    # -----------------------------
+    vl_denominator = refills.exclude(vl_sample_collection_date__isnull=True).count()
+    vl_numerator = refills.exclude(vl_result__isnull=True).count()
+    vl_coverage = round((vl_numerator / vl_denominator * 100), 1) if vl_denominator else 0
 
-    # Calculate VL eligibility and numerator/denominator
-    quarter_start_month = {"Q1":1, "Q2":4, "Q3":7, "Q4":10}[current_quarter]
-    quarter_start = timezone.datetime(today.year, quarter_start_month, 1).date()
-    quarter_end = (timezone.datetime(today.year, quarter_start_month+3, 1).date() - timedelta(days=1)
-                   if current_quarter in ["Q1","Q2","Q3"]
-                   else timezone.datetime(today.year+1, 1, 1).date() - timedelta(days=1))
+    # -----------------------------
+    # TPT Completion
+    # -----------------------------
+    tpt_clients = refills.filter(tpt_start_date__isnull=False)
+    tpt_total = tpt_clients.count()
+    tpt_completed = tpt_clients.filter(tpt_completion_date__isnull=False).count()
+    tpt_completion_rate = round((tpt_completed / tpt_total * 100), 1) if tpt_total else 0
 
-    eligible_clients = []
-    numerator_count = 0
-
-    quarter_refills = refills.filter(art_start_date__lte=quarter_end)
-
-    for r in quarter_refills:
-        if r.is_vl_eligible:
-            eligible_clients.append(r)
-        # Count if VL collected in this quarter
-        if r.vl_sample_collection_date and quarter_start <= r.vl_sample_collection_date <= quarter_end:
-            numerator_count += 1
-
-    denominator_count = len(eligible_clients)
-    vl_coverage = round((numerator_count / denominator_count * 100), 1) if denominator_count > 0 else 0
-
-    coverage_data = {
-        "denominator": denominator_count,
-        "numerator": numerator_count,
-        "coverage": vl_coverage
-    }
-
-    # ====================== CONTEXT ======================
     context = {
         "facilities": facilities,
         "selected_facility": facility_id,
-        "daily_expected": refills.filter(next_appointment=today),
-        "daily_refills": refills.filter(last_pickup_date=today),
-        "weekly_expected": refills.filter(next_appointment__range=[today, week_end]),
-        "weekly_refills": refills.filter(last_pickup_date__range=[today, week_end]),
-        "monthly_expected": refills.filter(next_appointment__year=today.year, next_appointment__month=today.month),
-        "monthly_refills": refills.filter(last_pickup_date__year=today.year, last_pickup_date__month=today.month),
+        # Daily / Weekly / Monthly
+        "daily_expected": daily_expected,
+        "daily_refills": daily_refills,
+        "weekly_expected": weekly_expected,
+        "monthly_expected": monthly_expected,
+        # Missed / IIT
         "monthly_missed_total": monthly_missed_total,
         "iit_total": iit_total,
-        "vl_denominator": coverage_data["denominator"],
-        "vl_numerator": coverage_data["numerator"],
-        "vl_coverage": coverage_data["coverage"],
-        "current_year": today.year,
-        "current_quarter": current_quarter,
-        "today": today,
+        # VL
+        "vl_denominator": vl_denominator,
+        "vl_numerator": vl_numerator,
+        "vl_coverage": vl_coverage,
+        # TPT
+        "tpt_total": tpt_total,
+        "tpt_completed": tpt_completed,
+        "tpt_completion_rate": tpt_completion_rate,
+        "today": today
     }
-
     return render(request, "dashboard.html", context)
-
-
 
 # ================================
 # CRUD VIEWS
@@ -537,6 +480,7 @@ def refill_list(request):
     return render(request, "refill_list.html", context)
 
 
+
 # =================== EXCEL EXPORT ===================
 def export_refills_to_excel(refills):
     today = timezone.now().date()
@@ -544,34 +488,60 @@ def export_refills_to_excel(refills):
     ws = wb.active
     ws.title = "Expected Refills Data"
 
+    # Add headers (including TPT and VL Result)
     headers = [
-        'Unique ID','Facility','Sex','Current Regimen','Case Manager',
-        'Last Pickup','Next Appointment','Days Missed','VL Eligibility Status'
+        'Unique ID', 'Facility', 'Sex', 'Current Regimen', 'Case Manager',
+        'Last Pickup', 'Next Appointment', 'Days Missed',
+        'VL Result (c/ml)', 'VL Eligibility Status',
+        'TPT Start Date', 'TPT Completion Date', 'TPT Status'
     ]
     ws.append(headers)
 
     for refill in refills:
-        # Calculate dates
-        refill.calculate_dates()
+        # Calculate next appointment and expected IIT if not precomputed
+        if not hasattr(refill, "next_appointment") or refill.next_appointment is None:
+            if refill.last_pickup_date and refill.months_of_refill_days:
+                refill.next_appointment = refill.last_pickup_date + timedelta(days=refill.months_of_refill_days*30)
+            else:
+                refill.next_appointment = None
 
         # Days missed
-        days_missed = (timezone.now().date() - refill.next_appointment).days if refill.next_appointment and refill.next_appointment < timezone.now().date() else 0
+        days_missed = (
+            (timezone.now().date() - refill.next_appointment).days
+            if refill.next_appointment and refill.next_appointment < timezone.now().date() else 0
+        )
 
-        # VL status
-        vl_status = "Eligible" if refill.is_vl_eligible else "Not Eligible"
+        # VL Result & status
+        vl_result = refill.vl_result if refill.vl_result is not None else ""
+        vl_status = "Eligible" if getattr(refill, "is_vl_eligible", False) else "Not Eligible"
+
+        # TPT fields
+        tpt_start = refill.tpt_start_date.strftime("%Y-%m-%d") if refill.tpt_start_date else ""
+        tpt_completion = refill.tpt_completion_date.strftime("%Y-%m-%d") if refill.tpt_completion_date else ""
+        tpt_status = getattr(refill, "tpt_status", "")
 
         row = [
             refill.unique_id,
             refill.facility.name if refill.facility else "",
-            refill.sex,
-            refill.current_regimen,
+            refill.sex or "",
+            refill.current_regimen or "",
             refill.case_manager or "",
             refill.last_pickup_date.strftime("%Y-%m-%d") if refill.last_pickup_date else "Never Picked",
             refill.next_appointment.strftime("%Y-%m-%d") if refill.next_appointment else "",
             days_missed,
-            vl_status
+            vl_result,
+            vl_status,
+            tpt_start,
+            tpt_completion,
+            tpt_status
         ]
         ws.append(row)
+
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max_length + 2
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -579,7 +549,6 @@ def export_refills_to_excel(refills):
     response['Content-Disposition'] = f'attachment; filename="Expected_Refills_{today}.xlsx"'
     wb.save(response)
     return response
-
 
 
 def refill_create(request, unique_id=None):
@@ -645,12 +614,6 @@ def refill_update(request, pk):
         return redirect('refill_list')
 
     return render(request, "refill_form.html", {"form": form})
-
-
-
-
-
-
 
 
 
@@ -1076,3 +1039,109 @@ def missed_refills(request):
 
 
 
+
+
+
+
+
+@login_required
+def track_vl(request):
+    today = timezone.now().date()
+
+    # ================== FILTERS ==================
+    facility_id = request.GET.get("facility")
+    selected_case_manager = request.GET.get("case_manager")
+    selected_unique_id = request.GET.get("unique_id")
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    # Safe date parsing
+    start_date_obj = None
+    end_date_obj = None
+    if start_date:
+        try:
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+        except ValueError:
+            start_date_obj = None
+    if end_date:
+        try:
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except ValueError:
+            end_date_obj = None
+
+    facilities = Facility.objects.all()
+    refills = Refill.objects.all().order_by('-vl_sample_collection_date')
+
+    # Apply filters
+    if facility_id:
+        try:
+            refills = refills.filter(facility_id=int(facility_id))
+        except ValueError:
+            pass
+    if selected_case_manager:
+        refills = refills.filter(case_manager=selected_case_manager)
+    if selected_unique_id:
+        refills = refills.filter(unique_id__icontains=selected_unique_id)
+    if start_date_obj:
+        refills = refills.filter(vl_sample_collection_date__gte=start_date_obj)
+    if end_date_obj:
+        refills = refills.filter(vl_sample_collection_date__lte=end_date_obj)
+
+    # ================== PAGINATION ==================
+    paginator = Paginator(refills, 10)  # 10 per page
+    page_number = request.GET.get("page")
+    vl_refills = paginator.get_page(page_number)
+
+    # ================== CASE MANAGERS ==================
+    case_managers_qs = (
+        Refill.objects.exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
+
+    # ================== EXCEL DOWNLOAD ==================
+    if "download" in request.GET:
+        return export_vl_to_excel(refills)
+
+    context = {
+        "facilities": facilities,
+        "selected_facility": facility_id,
+        "case_managers": case_managers,
+        "selected_case_manager": selected_case_manager,
+        "selected_unique_id": selected_unique_id,
+        "selected_start_date": start_date,
+        "selected_end_date": end_date,
+        "vl_refills": vl_refills,
+    }
+
+    return render(request, "track_vl.html", context)
+
+
+def export_vl_to_excel(refills):
+    today = timezone.now().date()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Track VL"
+
+    # Header
+    headers = ["Unique ID", "Facility", "Date VL Collected", "Date Refilled", "Case Manager"]
+    ws.append(headers)
+
+    for refill in refills:
+        row = [
+            refill.unique_id,
+            refill.facility.name if refill.facility else "",
+            refill.vl_sample_collection_date.strftime("%Y-%m-%d") if refill.vl_sample_collection_date else "",
+            refill.last_pickup_date.strftime("%Y-%m-%d") if refill.last_pickup_date else "",
+            refill.case_manager or "",
+        ]
+        ws.append(row)
+
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="Track_VL_{today}.xlsx"'
+    wb.save(response)
+    return response
