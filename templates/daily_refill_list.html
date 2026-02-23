@@ -74,6 +74,9 @@
         <!-- VL Eligibility Status -->
         <small>VL Status: {{ refill.vl_status }}</small><br>
 
+        <!-- TPT Status -->
+        <small>TPT Status: {{ refill.tpt_status }}</small><br>
+
         {% if refill.missed_appointment %}
           <span class="badge bg-danger">Missed Appointment</span><br>
         {% endif %}
@@ -105,7 +108,8 @@
           <th class="text-danger">Next Appointment</th>
           <th>Regimen</th>
           <th>Case Manager</th>
-          <th>VL Eligibility Status</th> <!-- NEW COLUMN -->
+          <th>VL Eligibility Status</th>
+          <th>TPT Status</th> <!-- NEW COLUMN -->
           <th>Actions</th> 
         </tr>
       </thead>
@@ -124,6 +128,9 @@
           <!-- VL Eligibility Status -->
           <td>{{ refill.vl_status }}</td>
 
+          <!-- TPT Status -->
+          <td>{{ refill.tpt_status }}</td>
+
           <td>
             {% if refill.missed_appointment %}
               <span class="badge bg-danger">Missed Appointment</span><br>
@@ -133,7 +140,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="10" class="text-center">No daily refills today</td>
+          <td colspan="11" class="text-center">No daily refills today</td>
         </tr>
         {% endfor %}
       </tbody>

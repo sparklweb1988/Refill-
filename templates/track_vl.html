@@ -54,6 +54,10 @@
                 <tr>
                     <th>Unique ID</th>
                     <th>Date VL Collected</th>
+<<<<<<< HEAD
+=======
+                    <th>VL Result (copies/ml)</th>
+>>>>>>> backup-local
                     <th>Date Refilled</th>
                     <th>Case Manager</th>
                 </tr>
@@ -63,12 +67,23 @@
                 <tr class="text-center">
                     <td>{{ refill.unique_id }}</td>
                     <td>{{ refill.vl_sample_collection_date|default:"-" }}</td>
+<<<<<<< HEAD
+=======
+                    <!-- VL Result with conditional coloring -->
+                    <td class="{% if refill.vl_result and refill.vl_result > 1000 %}text-danger fw-bold{% endif %}">
+                        {{ refill.vl_result|default:"-" }}
+                    </td>
+>>>>>>> backup-local
                     <td>{{ refill.last_pickup_date|default:"-" }}</td>
                     <td>{{ refill.case_manager|default:"-" }}</td>
                 </tr>
                 {% empty %}
                 <tr>
+<<<<<<< HEAD
                     <td colspan="4" class="text-center">No records found.</td>
+=======
+                    <td colspan="5" class="text-center">No records found.</td>
+>>>>>>> backup-local
                 </tr>
                 {% endfor %}
             </tbody>
@@ -112,4 +127,8 @@
     {% endif %}
 
 </div>
+<<<<<<< HEAD
 {% endblock %}
+=======
+{% endblock %}
+>>>>>>> backup-local
