@@ -1,143 +1,181 @@
 {% extends 'base.html' %}
-
 {% block content %}
+
 <style>
   .overdue { background-color: #f8d7da !important; }
-  .iit-approaching { background-color: #fff3cd !important; } /* yellow */
-  .cards-container { display: flex; flex-direction: column; gap: 1rem; }
-  .refill-card { padding: 1rem; }
-  .refill-card small { display: block; margin-bottom: 0.5rem; }
-
-  /* Risk Colors */
-  .risk-low { background-color: #d4edda; }
-  .risk-medium { background-color: #fff3cd; }
-  .risk-high { background-color: #f8d7da; }
+  .iit-approaching { background-color: #fff3cd !important; }
+  .card-mobile { margin-bottom: 1rem; }
+  .badge-mobile { margin-right: 0.5rem; }
 </style>
 
-<!-- ================= MOBILE CARDS ================= -->
-<div class="d-block d-md-none cards-container">
+<div class="container-fluid">
+
+  <!-- Filters -->
+  <form method="get" class="mb-4 d-flex flex-wrap gap-2">
+    <select name="facility" class="form-select w-auto" onchange="this.form.submit()">
+      <option value="">All Facilities</option>
+      {% for facility in facilities %}
+        <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>{{ facility.name }}</option>
+      {% endfor %}
+    </select>
+
+    <input type="text" name="search_unique_id" value="{{ search_unique_id|default:'' }}" class="form-control w-auto">
+    <input type="date" name="start_date" value="{{ selected_start_date }}" class="form-control w-auto">
+    <input type="date" name="end_date" value="{{ selected_end_date }}" class="form-control w-auto">
+    
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+
   {% for period in periods %}
-    <div class="card refill-card {% if period.name == 'Daily' %}text-white bg-primary{% elif period.name == 'Weekly' %}text-dark bg-warning{% else %}text-white bg-success{% endif %}">
-      <div class="card-body">
-        <h5>{{ period.name }} Expected ({{ period.page_obj.paginator.count }})</h5>
+  <div class="card mb-4 shadow-sm">
 
-        {% for refill in period.page_obj %}
-          <small class="{% if refill.next_appointment and refill.next_appointment < today %}overdue{% elif refill.next_appointment and refill.next_appointment <= seven_days_from_today %}iit-approaching{% endif %}">
-            {{ refill.unique_id }} | {{ refill.facility.name }}<br>
-            Sex: {{ refill.sex }}<br>
-            Last Pickup: {{ refill.last_pickup_date|date:"Y-m-d" }}<br>
-            Next Appointment: {{ refill.next_appointment|date:"Y-m-d" }}<br>
-            Refill (Days): {{ refill.months_of_refill_days }}<br>
-            Regimen: {{ refill.current_regimen }}<br>
-            Case Manager: {{ refill.case_manager }}<br>
-            ART Start: {{ refill.art_start_date|date:"Y-m-d" }}<br>
-            TPT Start: {{ refill.tpt_start_date|date:"Y-m-d" }}<br>
-            TPT Completion: {{ refill.tpt_completion_date|date:"Y-m-d" }}<br>
-            TPT Status: {{ refill.tpt_status }}<br>
-            VL Status: {{ refill.vl_status }}<br>
-
-<<<<<<< HEAD
-            <!-- Prediction -->
-             appointment adherence forecast:
-=======
-            Appointment adherence forecast:
->>>>>>> backup-local
-            {% if refill.prediction_probability < 30 %}
-              <span class="badge bg-success">{{ refill.prediction_probability }}%</span>
-            {% elif refill.prediction_probability < 70 %}
-              <span class="badge bg-warning text-dark">{{ refill.prediction_probability }}%</span>
-            {% else %}
-              <span class="badge bg-danger">{{ refill.prediction_probability }}%</span>
-            {% endif %}
-            <br>
-
-            Action:
-            {% if refill.missed_appointment %}
-              <span class="badge bg-danger">Missed Appointment</span><br>
-            {% endif %}
-
-            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Add Refills</a>
-          </small>
-          <hr>
-        {% empty %}
-          <small>No {{ period.name|lower }} expected refills</small>
-        {% endfor %}
-
-      </div>
+    <div class="card-header bg-dark text-white">
+      <strong>{{ period.name }} Total Expected</strong>
     </div>
-  {% endfor %}
-</div>
 
-<!-- ================= DESKTOP TABLES ================= -->
-<div class="d-none d-md-block">
-  {% for period in periods %}
-    <h3>{{ period.name }} Expected</h3>
-    <table class="table table-striped table-bordered">
-      <thead class="table-dark">
-        <tr>
-          <th>Unique ID</th>
-          <th>Sex</th>
-          <th>Facility</th>
-          <th>Last Pickup</th>
-          <th>Refill (Days)</th>
-          <th class="text-danger">Next Appointment</th>
-          <th>Regimen</th>
-          <th>Case Manager</th>
-<<<<<<< HEAD
-          <th>VL Eligibility Status</th> <!-- NEW COLUMN -->
-          <th>appointment adherence forecast %</th>
-=======
-          <th>ART Start</th>             <!-- Keep ART start -->
-          <th>TPT Start</th>             <!-- New -->
-          <th>TPT Completion</th>        <!-- New -->
-          <th>TPT Status</th>            <!-- New -->
-          <th>VL Status</th>
-          <th>Appointment Adherence %</th>
->>>>>>> backup-local
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
+    <!-- Desktop Table -->
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+          <tr>
+            <th>Unique ID</th>
+            <th>Sex</th>
+            <th>Facility</th>
+            <th>Case Manager</th>
+            <th>Next Appointment</th>
+            <th>VL Eligibility</th>
+            <th>EAC Status</th>
+            <th>AHD Eligibility</th>
+            <th>TPT Status</th>
+            <th>Remark</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
         {% for refill in period.page_obj %}
-          <tr class="{% if refill.next_appointment and refill.next_appointment < today %}overdue{% elif refill.next_appointment and refill.next_appointment <= seven_days_from_today %}iit-approaching{% endif %}">
+          <tr class="{% if refill.days_missed_display > 0 %}overdue{% endif %}">
             <td>{{ refill.unique_id }}</td>
             <td>{{ refill.sex }}</td>
             <td>{{ refill.facility.name }}</td>
-            <td>{{ refill.last_pickup_date|date:"Y-m-d" }}</td>
-            <td>{{ refill.months_of_refill_days }}</td>
-            <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
-            <td>{{ refill.current_regimen }}</td>
             <td>{{ refill.case_manager }}</td>
-            <td>{{ refill.art_start_date|date:"Y-m-d" }}</td>
-            <td>{{ refill.tpt_start_date|date:"Y-m-d" }}</td>
-            <td>{{ refill.tpt_completion_date|date:"Y-m-d" }}</td>
-            <td>{{ refill.tpt_status }}</td>
-            <td>{{ refill.vl_status }}</td>
+            <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
+          
+
+            <!-- VL Eligibility -->
             <td>
-              {% if refill.prediction_probability < 30 %}
-                <span class="badge bg-success">{{ refill.prediction_probability }}%</span>
-              {% elif refill.prediction_probability < 70 %}
-                <span class="badge bg-warning text-dark">{{ refill.prediction_probability }}%</span>
+              {% if refill.is_vl_eligible %}
+                <span class="badge bg-success">Eligible</span>
               {% else %}
-                <span class="badge bg-danger">{{ refill.prediction_probability }}%</span>
+                <span class="badge bg-secondary">Not Eligible</span>
               {% endif %}
             </td>
+
+            <!-- EAC Status -->
+            <td>
+              {% if refill.eac %}
+                {% if refill.post_eac_vl_due %}
+                  <span class="badge bg-success text-dark">Post-EAC VL Due</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">{{ refill.eac_status }}</span>
+                {% endif %}
+                {% if refill.eac_sessions_completed %}
+                  <br><small>{{ refill.eac_sessions_completed }}/3 Sessions</small>
+                {% endif %}
+              {% else %}
+                <span class="badge bg-secondary">Not Eligible</span>
+              {% endif %}
+            </td>
+
+            <!-- AHD Eligibility -->
+            <td>
+              {% if refill.ahd %}
+                <span class="badge bg-danger">Eligible</span>
+              {% else %}
+                <span class="badge bg-secondary">Not Eligible</span>
+              {% endif %}
+            </td>
+
+            <!-- TPT Status -->
+            <td>{{ refill.tpt_status }}</td>
+
+            <!-- Remark -->
+            <td>{{ refill.remark|default:"" }}</td>
+
             <td>
               {% if refill.missed_appointment %}
-                <span class="badge bg-danger">Missed Appointment</span><br>
+                <span class="badge bg-danger">Missed</span><br>
               {% endif %}
-              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Add Refills</a>
+              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add Refill</a>
             </td>
           </tr>
         {% empty %}
-          <tr>
-            <td colspan="15" class="text-center">
-              No {{ period.name|lower }} expected refills
-            </td>
-          </tr>
+          <tr><td colspan="12" class="text-center">No records</td></tr>
         {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="d-block d-md-none">
+      {% for refill in period.page_obj %}
+      <div class="card card-mobile {% if refill.days_missed_display > 0 %}overdue{% endif %}">
+        <div class="card-body">
+          <p><strong>Unique ID:</strong> {{ refill.unique_id }}</p>
+          <p><strong>Sex:</strong> {{ refill.sex }}</p>
+          <p><strong>Facility:</strong> {{ refill.facility.name }}</p>
+          <p><strong>Case Manager:</strong> {{ refill.case_manager }}</p>
+          <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
+         
+          <p><strong>Remark:</strong> {{ refill.remark|default:"" }}</p>
+
+          <p>
+            <span class="badge badge-mobile {% if refill.is_vl_eligible %}bg-success{% else %}bg-secondary{% endif %}">VL</span>
+            <span class="badge badge-mobile {% if refill.eac %}bg-warning text-dark{% else %}bg-secondary{% endif %}">EAC</span>
+            <span class="badge badge-mobile {% if refill.ahd %}bg-danger{% else %}bg-secondary{% endif %}">AHD</span>
+            <span class="badge badge-mobile bg-info text-dark">TPT: {{ refill.tpt_status }}</span>
+          </p>
+
+          {% if refill.eac and refill.eac_sessions_completed %}
+            <p><small>{{ refill.eac_sessions_completed }}/3 EAC Sessions Completed</small></p>
+          {% endif %}
+          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add Refill</a>
+        </div>
+      </div>
+      {% empty %}
+        <p class="text-center">No records</p>
+      {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <div class="d-flex justify-content-between align-items-center p-2">
+      <span>
+        Page {{ period.page_obj.number }} of {{ period.page_obj.paginator.num_pages }}
+      </span>
+      <div>
+        {% if period.page_obj.has_previous %}
+          <a class="btn btn-sm btn-outline-secondary"
+             href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
+            Prev
+          </a>
+        {% endif %}
+        {% if period.page_obj.has_next %}
+          <a class="btn btn-sm btn-outline-secondary"
+             href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
+            Next
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
   {% endfor %}
+
+  <!-- Download Excel Button -->
+  <div class="text-end mb-4">
+    <a href="?{{ query_params }}&download=1" class="btn btn-success">
+      <i class="bi bi-download"></i> Download Excel
+    </a>
+  </div>
+
 </div>
 {% endblock %}

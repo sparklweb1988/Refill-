@@ -13,12 +13,12 @@
 
                 <!-- SUCCESS & ERROR MESSAGES -->
                 {% if messages %}
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
                 {% endif %}
 
                 <form id="upload-form" method="post" enctype="multipart/form-data">
@@ -29,22 +29,38 @@
                         <label class="form-label">Excel File</label>
                         {{ form.file }}
                         <div class="form-text">
-                            Maximum file size: 1 GB. The file can contain multiple facilities.
+                            Maximum file size: 1 GB. The file can contain multiple facilities.<br>
+                            <strong>Required columns in Excel:</strong><br>
+                            - Unique Id<br>
+                            - Last Pickup Date (yyyy-mm-dd)<br>
+                            - Months of ARV Refill<br>
+                            - Current ART Regimen<br>
+                            - Case Manager<br>
+                            - Sex<br>
+                            - Current ART Status (Active / Active Restart)<br>
+                            - Facility Name<br>
+                            - ART Start Date (yyyy-mm-dd)<br>
+                            - Date of Viral Load Sample Collection (yyyy-mm-dd)<br>
+                            - Current Viral Load (c/ml)<br>
+                            - Date of TPT Start (yyyy-mm-dd)<br>
+                            - TPT Completion Date (yyyy-mm-dd)<br>
+                            - <strong>Date of Commencement of EAC (yyyy-mm-dd)</strong><br>
+                            - <strong>Number of EAC Sessions Completed</strong>
                         </div>
 
                         <!-- Field Errors -->
                         {% if form.file.errors %}
-                        <div class="text-danger mt-2">
-                            {{ form.file.errors }}
-                        </div>
+                            <div class="text-danger mt-2">
+                                {{ form.file.errors }}
+                            </div>
                         {% endif %}
                     </div>
 
                     <!-- General Form Errors -->
                     {% if form.errors %}
-                    <div class="alert alert-danger">
-                        {{ form.errors }}
-                    </div>
+                        <div class="alert alert-danger">
+                            {{ form.errors }}
+                        </div>
                     {% endif %}
 
                     <!-- Submit Button -->
@@ -52,13 +68,15 @@
                         Upload File
                     </button>
 
-                    <!-- Spinner -->
-                    <!-- <div id="loading-spinner" class="text-center mt-3" style="display: none;">
+                    <!-- Spinner (optional, uncomment if needed) -->
+                    <!--
+                    <div id="loading-spinner" class="text-center mt-3" style="display: none;">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Uploading...</span>
                         </div>
                         <div class="mt-2">Uploading and processing, please wait...</div>
-                    </div> -->
+                    </div>
+                    -->
 
                 </form>
             </div>
@@ -67,12 +85,14 @@
     </div>
 </div>
 
-<!-- Spinner Script -->
-<!-- <script>
+<!-- Spinner Script (optional) -->
+<!--
+<script>
 document.getElementById('upload-form').addEventListener('submit', function() {
     document.getElementById('submit-btn').style.display = 'none';
     document.getElementById('loading-spinner').style.display = 'block';
 });
-</script> -->
+</script>
+-->
 
 {% endblock %}

@@ -74,6 +74,22 @@
         <!-- VL Eligibility Status -->
         <small>VL Status: {{ refill.vl_status }}</small><br>
 
+        <!-- EAC Status -->
+        <small>EAC Status: 
+          {% if refill.eac %}
+            {% if refill.post_eac_vl_due %}
+              Post-EAC VL Due
+            {% else %}
+              {{ refill.eac_status }}
+            {% endif %}
+          {% else %}
+            Not Eligible
+          {% endif %}
+        </small><br>
+
+        <!-- AHD Status -->
+        <small>AHD Status: {% if refill.ahd %}Eligible{% else %}Not Eligible{% endif %}</small><br>
+
         <!-- TPT Status -->
         <small>TPT Status: {{ refill.tpt_status }}</small><br>
 
@@ -95,7 +111,7 @@
 
 <!-- ================= DESKTOP VIEW: TABLES ================= -->
 <div class="d-none d-md-block">
-  <h3>Today's Refills ({{ refills.count }})</h3>
+  <h3>Add Refills ({{ refills.count }})</h3>
   <div class="table-responsive">
     <table class="table table-striped table-bordered">
       <thead class="table-dark">
@@ -109,7 +125,9 @@
           <th>Regimen</th>
           <th>Case Manager</th>
           <th>VL Eligibility Status</th>
-          <th>TPT Status</th> <!-- NEW COLUMN -->
+          <th>EAC Status</th>
+          <th>AHD Eligibility</th>
+          <th>TPT Status</th>
           <th>Actions</th> 
         </tr>
       </thead>
@@ -128,6 +146,22 @@
           <!-- VL Eligibility Status -->
           <td>{{ refill.vl_status }}</td>
 
+          <!-- EAC Status -->
+          <td>
+            {% if refill.eac %}
+              {% if refill.post_eac_vl_due %}
+                Post-EAC VL Due
+              {% else %}
+                {{ refill.eac_status }}
+              {% endif %}
+            {% else %}
+              Not Eligible
+            {% endif %}
+          </td>
+
+          <!-- AHD Status -->
+          <td>{% if refill.ahd %}Eligible{% else %}Not Eligible{% endif %}</td>
+
           <!-- TPT Status -->
           <td>{{ refill.tpt_status }}</td>
 
@@ -140,7 +174,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="11" class="text-center">No daily refills today</td>
+          <td colspan="13" class="text-center">No daily refills today</td>
         </tr>
         {% endfor %}
       </tbody>

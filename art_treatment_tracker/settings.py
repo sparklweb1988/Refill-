@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-te%yup5i!-r!b5gh-=#-2c215aas483su-fm#2(a6vn35!^9+*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'refills',
     'gunicorn',
+    'whitenoise',
 ]
 
 MIDDLEWARE = [

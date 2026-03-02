@@ -68,7 +68,7 @@
         <div class="container">
 
             <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
-                <img src="{% static 'images/logo.jpeg' %}" alt="Logo" class="navbar-logo me-2">
+                <img src="{% static 'images/logo.jpg' %}" alt="Logo" class="navbar-logo me-2">
                 <span>Refill+</span>
             </a>
 
@@ -92,20 +92,20 @@
                             <a class="nav-link dropdown-toggle 
                                {% if request.resolver_match.url_name in 'refill_list daily_refill_list track_refills missed_refills' %}active{% endif %}"
                                href="#" role="button" data-bs-toggle="dropdown">
-                                Refills
+                                All Refills
                             </a>
                             <ul class="dropdown-menu">
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'refill_list' %}">Expected List</a>
+                                    <a class="dropdown-item" href="{% url 'refill_list' %}">Total Expected</a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'daily_refill_list' %}">Update Refills</a>
+                                    <a class="dropdown-item" href="{% url 'daily_refill_list' %}">Add Daily Refills</a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'track_refills' %}">Track Refills</a>
+                                    <a class="dropdown-item" href="{% url 'track_refills' %}">View Daily Refills</a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'missed_refills' %}">Missed Refills</a>
+                                    <a class="dropdown-item" href="{% url 'missed_refills' %}">Missed Appointment</a>
                                 </li>
                             </ul>
                         </li>
