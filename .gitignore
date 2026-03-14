@@ -1,0 +1,53 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Virtual Environments
+# =========================
+venv/
+.env/
+.venv/
+
+# =========================
+# Django
+# =========================
+# Database
+db.sqlite3
+
+# Media / user uploads
+media/
+uploads/
+
+# Static files (collected)
+staticfiles/
+static_root/
+
+# Migrations (ignore compiled, keep __init__.py)
+**/migrations/__pycache__/
+**/migrations/*.py[cod]
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# OS / Misc
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+*.out
