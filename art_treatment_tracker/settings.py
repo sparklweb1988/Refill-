@@ -149,7 +149,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 1073741824  
-FILE_UPLOAD_MAX_MEMORY_SIZE = 1073741824  
-
+# Allow large file uploads (Excel, etc.)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50 MB
 
