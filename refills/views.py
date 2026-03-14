@@ -77,8 +77,10 @@ def logout_view(request):
 VALID_REFILL_MONTHS = [0.5, 1, 2, 2.8, 3, 4, 5, 6]
 
 def import_refills_from_excel(file):
-    if file.size > 1073741824:
-        raise ValidationError("File size exceeds 1GB limit")
+  MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+  if file.size > MAX_FILE_SIZE:
+    raise ValidationError("File size exceeds 50 MB limit")
     file.seek(0)
     df = pd.read_excel(file)
     df.columns = df.columns.str.strip().str.replace('\n','').str.replace('\r','').str.lower()
