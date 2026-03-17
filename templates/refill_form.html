@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container">
+<div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-10">
 
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
                         {% if form.instance.pk %}
-                            Update Refill Record
+                        Update Refill Record
                         {% else %}
-                            Add New Refill
+                        Add New Refill
                         {% endif %}
                     </h5>
                 </div>
@@ -19,7 +19,6 @@
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
-
                         <div class="row g-3">
 
                             <!-- Facility -->
@@ -34,56 +33,57 @@
                                 {{ form.unique_id }}
                             </div>
 
-                            <!-- ART Start Date -->
+                            <!-- Age -->
                             <div class="col-md-6">
-                                <label class="form-label">ART Start Date (yyyy-mm-dd)</label>
-                                {{ form.art_start_date }}
-                            </div>
-
-                            <!-- VL Sample Collection -->
-                            <div class="col-md-6">
-                                <label class="form-label">VL Sample Collection Date</label>
-                                {{ form.vl_sample_collection_date }}
-                            </div>
-
-                            <!-- VL Result -->
-                            <div class="col-md-6">
-                                <label class="form-label">Viral Load Result (copies/ml)</label>
-                                {{ form.vl_result }}
-                            </div>
-
-                            <!-- VL Eligibility -->
-                            <div class="col-md-6">
-                                <label class="form-label">VL Eligibility Status</label><br>
-                                {% if form.instance.is_vl_eligible %}
-                                    <span class="badge bg-success">Eligible (≥180 Days on ART)</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">Not Eligible</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- Suppression Status -->
-                            <div class="col-md-6">
-                                <label class="form-label">Viral Load Suppression</label><br>
-                                {% if form.instance.is_suppressed == True %}
-                                    <span class="badge bg-success">Suppressed (&lt;1000)</span>
-                                {% elif form.instance.is_suppressed == False %}
-                                    <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-                                {% else %}
-                                    <span class="badge bg-warning text-dark">No VL Result</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- Last Pickup -->
-                            <div class="col-md-6">
-                                <label class="form-label">Last Pickup Date</label>
-                                {{ form.last_pickup_date }}
+                                <label class="form-label">Age</label>
+                                {{ form.age }}
                             </div>
 
                             <!-- Sex -->
                             <div class="col-md-6">
                                 <label class="form-label">Sex</label>
                                 {{ form.sex }}
+                            </div>
+
+                            <!-- ART Start Date -->
+                            <div class="col-md-6">
+                                <label class="form-label">ART Start Date</label>
+                                {{ form.art_start_date }}
+                            </div>
+
+                            <!-- VL Section -->
+                            <div class="col-md-6">
+                                <label class="form-label">VL Sample Collection Date</label>
+                                {{ form.vl_sample_collection_date }}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Viral Load Result</label>
+                                {{ form.vl_result }}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">VL Eligibility Status</label><br>
+                                <span class="badge bg-info text-dark">
+                                    {{ form.instance.vl_status|default:"Not Available" }}
+                                </span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Viral Load Suppression</label><br>
+                                {% if form.instance.is_suppressed == True %}
+                                <span class="badge bg-success">Suppressed (&lt;1000)</span>
+                                {% elif form.instance.is_suppressed == False %}
+                                <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">No VL Result</span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Pickup -->
+                            <div class="col-md-6">
+                                <label class="form-label">Add Refill Date</label>
+                                {{ form.last_pickup_date }}
                             </div>
 
                             <!-- Refill Duration -->
@@ -104,23 +104,32 @@
                                 {{ form.case_manager }}
                             </div>
 
-                            <!-- EAC -->
+                            <!-- EAC Status -->
                             <div class="col-md-6">
                                 <label class="form-label">EAC Status</label><br>
                                 {% if form.instance.eac %}
-                                    <span class="badge bg-warning text-dark">Eligible</span>
+                                <span class="badge bg-warning text-dark">Eligible</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Not Eligible</span>
+                                <span class="badge bg-secondary">Not Eligible</span>
                                 {% endif %}
                             </div>
 
-                            <!-- AHD -->
+                            <div class="col-md-6">
+                                <label class="form-label">Post EAC VL Due</label><br>
+                                {% if form.instance.eac_status == "Post-EAC VL Due" %}
+                                <span class="badge bg-danger">Post-EAC VL Due</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </div>
+
+                            <!-- AHD Status -->
                             <div class="col-md-6">
                                 <label class="form-label">AHD Status</label><br>
                                 {% if form.instance.ahd %}
-                                    <span class="badge bg-danger">Eligible</span>
+                                <span class="badge bg-danger">Eligible</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Not Eligible</span>
+                                <span class="badge bg-secondary">Not Eligible</span>
                                 {% endif %}
                             </div>
 
@@ -130,38 +139,76 @@
                                 {{ form.remark }}
                             </div>
 
-                            <!-- Next Appointment (Auto) -->
+                            <!-- Next Appointment -->
                             <div class="col-md-6">
                                 <label class="form-label">Next Appointment</label>
                                 <input type="text" class="form-control"
-                                       value="{{ form.instance.next_appointment|date:'Y-m-d' }}"
-                                       readonly>
+                                    value="{{ form.instance.next_appointment|date:'Y-m-d' }}" readonly>
                             </div>
 
-                            <!-- TPT Start -->
+                            <!-- TPT Section -->
                             <div class="col-md-6">
                                 <label class="form-label">TPT Start Date</label>
                                 {{ form.tpt_start_date }}
                             </div>
 
-                            <!-- TPT Completion -->
                             <div class="col-md-6">
                                 <label class="form-label">TPT Completion Date</label>
                                 {{ form.tpt_completion_date }}
                             </div>
 
-                            <!-- TPT Status -->
                             <div class="col-md-6">
                                 <label class="form-label">TPT Status</label><br>
                                 {% if form.instance.tpt_status == "Completed" %}
-                                    <span class="badge bg-success">Completed</span>
+                                <span class="badge bg-success">Completed</span>
                                 {% elif form.instance.tpt_status == "Ongoing" %}
-                                    <span class="badge bg-warning text-dark">Ongoing</span>
+                                <span class="badge bg-warning text-dark">Ongoing</span>
                                 {% elif form.instance.tpt_status == "Overdue" %}
-                                    <span class="badge bg-danger">Overdue</span>
+                                <span class="badge bg-danger">Overdue</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Not Started</span>
+                                <span class="badge bg-secondary">Not Started</span>
                                 {% endif %}
+                            </div>
+
+                            <!-- ================= TB Section ================= -->
+                            <div class="col-md-6">
+                                <label class="form-label">TB Cascade Status</label><br>
+                                <span class="badge bg-info">{{ latest_tb.tb_cascade_status|default:"N/A" }}</span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">TB Screening Type</label><br>
+                                <span class="badge bg-info">{{ latest_tb.tb_screening_type|default:"N/A" }}</span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">TB Status</label><br>
+                                {% if latest_tb %}
+                                {% if latest_tb.tb_status == "Positive" %}
+                                <span class="badge bg-danger">Positive</span>
+                                {% elif latest_tb.tb_status == "Negative" %}
+                                <span class="badge bg-success">Negative</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ latest_tb.tb_status }}</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge bg-secondary">No Record</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">TB Sample Collection Date</label><br>
+                                <span>{{ latest_tb.tb_sample_collection_date|date:"Y-m-d"|default:"-" }}</span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">TB Result Received Date</label><br>
+                                <span>{{ latest_tb.tb_result_received_date|date:"Y-m-d"|default:"-" }}</span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">TB Diagnostic Result</label><br>
+                                <span class="badge bg-info">{{ latest_tb.tb_diagnostic_result|default:"-" }}</span>
                             </div>
 
                         </div>
@@ -177,7 +224,6 @@
 
                     </form>
                 </div>
-
             </div>
 
         </div>

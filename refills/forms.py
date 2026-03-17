@@ -1,42 +1,40 @@
 from django import forms
 from .models import Refill, Facility
-from django.utils import timezone
-from datetime import timedelta
 from django.core.exceptions import ValidationError
-
 
 class RefillForm(forms.ModelForm):
     class Meta:
         model = Refill
         fields = [
-            'facility',
-            'unique_id',
-            'art_start_date',                  
-            'vl_sample_collection_date',       
-            'vl_result',                       
-            'last_pickup_date',
-            'sex',
-            'months_of_refill_days',           
-            'current_regimen',
-            'case_manager',
-            'remark',
-            'tpt_start_date',
-            'tpt_completion_date',
+            'facility', 'unique_id', 'age', 'sex',
+            'art_start_date', 'vl_sample_collection_date', 'vl_result',
+            'last_pickup_date', 'months_of_refill_days',
+            'current_regimen', 'case_manager',
+            'tb_screening_date', 'tb_screening_type', 'tb_status',
+            'tb_sample_collection_date', 'tb_result_received_date', 'tb_diagnostic_result',
+            'remark', 'tpt_start_date', 'tpt_completion_date'
         ]
         widgets = {
             'facility': forms.Select(attrs={'class': 'form-select'}),
             'unique_id': forms.TextInput(attrs={'class': 'form-control'}),
-            'art_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'vl_sample_collection_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'vl_result': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'copies/ml'}),
-            'last_pickup_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'age': forms.NumberInput(attrs={'class': 'form-control'}),
             'sex': forms.Select(attrs={'class': 'form-select'}),
-            'months_of_refill_days': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1'}),
+            'art_start_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
+            'vl_sample_collection_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
+            'vl_result': forms.NumberInput(attrs={'class':'form-control'}),
+            'last_pickup_date': forms.DateInput(attrs={'type':'date','class':'form-control','placeholder':'Select date'}),
+            'months_of_refill_days': forms.NumberInput(attrs={'class': 'form-control'}),
             'current_regimen': forms.TextInput(attrs={'class': 'form-control'}),
             'case_manager': forms.TextInput(attrs={'class': 'form-control'}),
-            'remark': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'tpt_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'tpt_completion_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'tb_screening_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
+            'tb_screening_type': forms.Select(attrs={'class':'form-select'}),
+            'tb_status': forms.Select(attrs={'class':'form-select'}),
+            'tb_sample_collection_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
+            'tb_result_received_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
+            'tb_diagnostic_result': forms.Select(attrs={'class':'form-select'}),
+            'remark': forms.Textarea(attrs={'class':'form-control', 'rows':2}),
+            'tpt_start_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
+            'tpt_completion_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
         }
 
     def clean_vl_result(self):
@@ -53,23 +51,6 @@ class RefillForm(forms.ModelForm):
             raise ValidationError("VL sample date cannot be before ART start date.")
         return cleaned_data
 
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        today = timezone.now().date()
-
-        # Calculate VL eligibility
-        instance.vl_eligible = False
-        if instance.art_start_date and (today - instance.art_start_date).days >= 180:
-            instance.vl_eligible = True
-
-        if commit:
-            instance.save()
-        return instance
-
-
-# -----------------------
-# Upload Excel Form
-# -----------------------
 class UploadExcelForm(forms.Form):
     file = forms.FileField(
         widget=forms.ClearableFileInput(attrs={'class': 'form-control'})

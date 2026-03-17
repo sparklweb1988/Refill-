@@ -1,10 +1,14 @@
 from django.contrib import admin
 from .models import Refill, Facility
 
+# Unregister if already registered
+if Facility in admin.site._registry:
+    admin.site.unregister(Facility)
 
 @admin.register(Facility)
 class FacilityAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "location")
+    search_fields = ("name", "code", "location")
 
 
 @admin.register(Refill)

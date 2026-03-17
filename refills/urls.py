@@ -5,11 +5,13 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('refills/', views.refill_list, name='refill_list'),
+    path("refills/export/", views.export_all_refills_excel, name="export_refills_excel"),
     path('refills/add/', views.refill_create, name='refill_add'),
     path('refills/edit/<int:pk>/', views.refill_update, name='refill_edit'),
     path('upload/', views.upload_excel, name='upload_excel'),
     path('refills/daily/', views.daily_refill_list, name='daily_refill_list'),
     path('refills/track/', views.track_refills, name='track_refills'),
+    path("track-refills/export/", views.export_all_track_refills_excel, name="export_track_refills_excel"),  # ✅ add this
     
     # Update URL pattern for 'refill_add_with_id' to handle unique_id with slashes
     re_path(r'^refills/add/(?P<unique_id>.+)/$', views.refill_create, name='refill_add_with_id'),  

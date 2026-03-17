@@ -1,296 +1,202 @@
 {% extends "base.html" %}
 {% load static %}
+
 {% block content %}
-
 <style>
-    /* ============================= */
-    /* TABLE STYLING */
-    /* ============================= */
+  /* ============================= */
+  /* TABLE & CARD STYLING */
+  /* ============================= */
+  .table-container { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { white-space: nowrap; }
+  tbody td { white-space: nowrap; vertical-align: middle; }
+  .overdue { background-color: #ffe6e6 !important; }
+  .remark-cell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .table-container {
-        overflow-x: auto;
-    }
+  .mobile-card {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .mobile-card.overdue { background-color: #ffe6e6; }
+  .mobile-card h6 { font-weight: bold; }
+  .mobile-card small { display: block; margin-bottom: 4px; }
 
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    thead th {
-        white-space: nowrap;
-    }
-
-    tbody td {
-        white-space: nowrap;
-        vertical-align: middle;
-    }
-
-    /* Overdue row styling */
-    .overdue {
-        background-color: #ffe6e6 !important;
-    }
-
-    /* Remark cell styling */
-    .remark-cell {
-        max-width: 220px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* Mobile card styling */
-    .mobile-card {
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 12px;
-        background: #ffffff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    }
-
-    .mobile-card.overdue {
-        background-color: #ffe6e6;
-    }
-
-    .mobile-card h6 {
-        font-weight: bold;
-    }
-
-    .mobile-card small {
-        display: block;
-        margin-bottom: 4px;
-    }
-
-    /* Hide desktop table on small screens */
-    @media (max-width: 768px) {
-        .desktop-view {
-            display: none;
-        }
-    }
-
-    /* Hide mobile cards on large screens */
-    @media (min-width: 769px) {
-        .mobile-view {
-            display: none;
-        }
-    }
+  /* Responsive */
+  @media (max-width: 768px) { .desktop-view { display: none; } }
+  @media (min-width: 769px) { .mobile-view { display: none; } }
 </style>
 
 <div class="container mt-4">
 
-    <h4 class="mb-3 text-center">
-        Refill Tracking
-    </h4>
+  <h4 class="mb-3 text-center">Refill Tracking</h4>
 
-    <!-- ============================= -->
-    <!-- FILTERS / SEARCH BAR -->
-    <!-- ============================= -->
+  <!-- ============================= -->
+  <!-- FILTERS -->
+  <!-- ============================= -->
+  <form method="get" class="mb-4 row g-2 align-items-end">
 
-    <form method="get" class="mb-4 row g-2 align-items-end">
-
-        <!-- Facility Filter -->
-        <div class="col-12 col-md-3">
-            <label class="form-label">Facility</label>
-            <select name="facility" class="form-select">
-                <option value="">All Facilities</option>
-                {% for facility in facilities %}
-                <option value="{{ facility.id }}"
-                    {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
-                    {{ facility.name }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Case Manager Filter -->
-        <div class="col-12 col-md-3">
-            <label class="form-label">Case Manager</label>
-            <select name="case_manager" class="form-select">
-                <option value="">All Case Managers</option>
-                {% for manager in case_managers %}
-                <option value="{{ manager }}" {% if manager == selected_case_manager %}selected{% endif %}>
-                    {{ manager }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- Start Date -->
-        <div class="col-12 col-md-2">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="start_date" value="{{ selected_start_date }}" class="form-control">
-        </div>
-
-        <!-- End Date -->
-        <div class="col-12 col-md-2">
-            <label class="form-label">End Date</label>
-            <input type="date" name="end_date" value="{{ selected_end_date }}" class="form-control">
-        </div>
-
-        <!-- Apply Button -->
-        <div class="col-12 col-md-2">
-            <button type="submit" class="btn btn-danger w-100">
-                Apply Filters
-            </button>
-        </div>
-
-    </form>
-
-
-    <!-- ============================= -->
-    <!-- DESKTOP TABLE VIEW -->
-    <!-- ============================= -->
-
-    <div class="desktop-view table-container">
-        {% for period_name, refills in periods %}
-        <h5 class="mt-4">{{ period_name }} Refills ({{ refills.paginator.count }})</h5>
-
-        <table class="table table-bordered table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Unique ID</th>
-                    <th>Sex</th>
-                    <th>Facility</th>
-                    <th>Last Pickup</th>
-                    <th>Refill (Days)</th>
-                    <th class="text-danger">Next Appointment</th>
-                    <th>Regimen</th>
-                    <th>Case Manager</th>
-                    <th>VL Eligibility Status</th> <!-- NEW COLUMN -->
-                    <th>Remark</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for refill in refills %}
-                <tr {% if refill.next_appointment and refill.next_appointment < today %} class="overdue" {% endif %}>
-
-                    <td>{{ refill.unique_id }}</td>
-                    <td>{{ refill.sex }}</td>
-                    <td>{{ refill.facility.name }}</td>
-                    <td>{{ refill.last_pickup_date }}</td>
-                    <td>{{ refill.months_of_refill_days }}</td>
-
-                    <td class="text-danger">
-                        {{ refill.next_appointment }}
-                    </td>
-
-                    <td>{{ refill.current_regimen }}</td>
-                    <td>{{ refill.case_manager }}</td>
-
-                    <!-- VL Eligibility Status -->
-                    <td>{{ refill.vl_status }}</td>
-
-                    <td class="remark-cell" title="{{ refill.remark }}">
-                        {% if refill.remark %}
-                        {{ refill.remark }}
-                        {% else %}
-                        —
-                        {% endif %}
-                    </td>
-
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="10" class="text-center">
-                        No {{ period_name|lower }} refills available.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <!-- Pagination -->
-        {% if refills.has_other_pages %}
-        <nav>
-            <ul class="pagination">
-                {% if refills.has_previous %}
-                <li class="page-item">
-                    <a class="page-link"
-                        href="?{{ request.GET.urlencode }}&{{ period_name|lower }}_page={{ refills.previous_page_number }}">
-                        «
-                    </a>
-                </li>
-                {% endif %}
-
-                <li class="page-item disabled">
-                    <span class="page-link">
-                        Page {{ refills.number }} of {{ refills.paginator.num_pages }}
-                    </span>
-                </li>
-
-                {% if refills.has_next %}
-                <li class="page-item">
-                    <a class="page-link"
-                        href="?{{ request.GET.urlencode }}&{{ period_name|lower }}_page={{ refills.next_page_number }}">
-                        »
-                    </a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
-
+    <div class="col-12 col-md-3">
+      <label class="form-label">Facility</label>
+      <select name="facility" class="form-select">
+        <option value="">All Facilities</option>
+        {% for facility in facilities %}
+        <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+          {{ facility.name }}
+        </option>
         {% endfor %}
+      </select>
     </div>
 
+    <div class="col-12 col-md-3">
+      <label class="form-label">Case Manager</label>
+      <select name="case_manager" class="form-select">
+        <option value="">All Case Managers</option>
+        {% for manager in case_managers %}
+        <option value="{{ manager }}" {% if manager == selected_case_manager %}selected{% endif %}>
+          {{ manager }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
 
-    <!-- ============================= -->
-    <!-- MOBILE CARD VIEW -->
-    <!-- ============================= -->
+    <div class="col-12 col-md-2">
+      <label class="form-label">Start Date</label>
+      <input type="date" name="start_date" value="{{ selected_start_date }}" class="form-control">
+    </div>
 
-    <div class="mobile-view">
-        {% for period_name, refills in periods %}
-        <h5 class="mt-4">{{ period_name }} Refills ({{ refills.paginator.count }})</h5>
+    <div class="col-12 col-md-2">
+      <label class="form-label">End Date</label>
+      <input type="date" name="end_date" value="{{ selected_end_date }}" class="form-control">
+    </div>
 
+    <div class="col-12 col-md-2">
+      <button type="submit" class="btn btn-danger w-100">Apply Filters</button>
+    </div>
+
+  </form>
+
+  <!-- ============================= -->
+  <!-- DESKTOP TABLE VIEW -->
+  <!-- ============================= -->
+  <div class="desktop-view table-container">
+    {% for period_name, refills in periods %}
+    <h5 class="mt-4">{{ period_name }} Refills ({{ refills.paginator.count }})</h5>
+
+    <table class="table table-bordered table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>Unique ID</th>
+          <th>Age</th>
+          <th>Sex</th>
+          <th>Facility</th>
+          <th>Last Pickup</th>
+          <th>Refill (Days)</th>
+          <th class="text-danger">Next Appointment</th>
+          <th>Regimen</th>
+          <th>Case Manager</th>
+          <th>VL Status</th>
+          <th>TB Screening</th>
+          <th>TB Type</th>
+          <th>TB Status</th>
+          <th>TB Sample Collected</th>
+          <th>TB Result Received</th>
+          <th>TB Diagnostic Result</th>
+          <th>Remark</th>
+        </tr>
+      </thead>
+      <tbody>
         {% for refill in refills %}
-        <div
-            class="mobile-card {% if refill.next_appointment and refill.next_appointment < today %} overdue {% endif %}">
-
-            <h6>{{ refill.unique_id }}</h6>
-
-            <small><strong>Sex:</strong> {{ refill.sex }}</small>
-            <small><strong>Facility:</strong> {{ refill.facility.name }}</small>
-            <small><strong>Last Pickup:</strong> {{ refill.last_pickup_date }}</small>
-            <small><strong>Refill (Days):</strong> {{ refill.months_of_refill_days }}</small>
-
-            <small class="text-danger">
-                <strong>Next Appointment:</strong> {{ refill.next_appointment }}
-            </small>
-
-            <small><strong>Regimen:</strong> {{ refill.current_regimen }}</small>
-            <small><strong>Case Manager:</strong> {{ refill.case_manager }}</small>
-
-            <!-- VL Eligibility Status -->
-            <small><strong>VL Status:</strong> {{ refill.vl_status }}</small>
-
-            <small>
-                <strong>Remark:</strong>
-                {% if refill.remark %}
-                {{ refill.remark|truncatechars:80 }}
-                {% else %}
-                —
-                {% endif %}
-            </small>
-
-        </div>
+        <tr {% if refill.next_appointment and refill.next_appointment < today %} class="overdue" {% endif %}>
+          <td>{{ refill.unique_id }}</td>
+          <td>{{ refill.age_display }}</td>
+          <td>{{ refill.sex }}</td>
+          <td>{{ refill.facility.name }}</td>
+          <td>{{ refill.last_pickup_date|default:"-" }}</td>
+          <td>{{ refill.months_of_refill_days|default:"-" }}</td>
+          <td>{{ refill.next_appointment|default:"-" }}</td>
+          <td>{{ refill.current_regimen|default:"-" }}</td>
+          <td>{{ refill.case_manager|default:"-" }}</td>
+          <td>{{ refill.vl_status }}</td>
+          <td>{{ refill.tb_screening_date_display }}</td>
+          <td>{{ refill.tb_screening_type_display }}</td>
+          <td>{{ refill.tb_status_display }}</td>
+          <td>{{ refill.tb_sample_collection_date_display }}</td>
+          <td>{{ refill.tb_result_received_date_display }}</td>
+          <td>{{ refill.tb_diagnostic_result_display }}</td>
+          <td class="remark-cell" title="{{ refill.remark|default:'' }}">{{ refill.remark|default:"—" }}</td>
+        </tr>
         {% empty %}
-        <div class="text-center">
-            No {{ period_name|lower }} refills available.
-        </div>
+        <tr>
+          <td colspan="17" class="text-center">No {{ period_name|lower }} refills available.</td>
+        </tr>
         {% endfor %}
-        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if refills.has_other_pages %}
+    <nav>
+      <ul class="pagination">
+        {% if refills.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ request.GET.urlencode }}&{{ period_name|lower }}_page={{ refills.previous_page_number }}">«</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">Page {{ refills.number }} of {{ refills.paginator.num_pages }}</span></li>
+        {% if refills.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ request.GET.urlencode }}&{{ period_name|lower }}_page={{ refills.next_page_number }}">»</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+
+    {% endfor %}
+  </div>
+
+  <!-- ============================= -->
+  <!-- MOBILE CARD VIEW -->
+  <!-- ============================= -->
+  <div class="mobile-view">
+    {% for period_name, refills in periods %}
+    <h5 class="mt-4">{{ period_name }} Refills ({{ refills.paginator.count }})</h5>
+    {% for refill in refills %}
+    <div class="mobile-card {% if refill.next_appointment and refill.next_appointment < today %}overdue{% endif %}">
+      <h6>{{ refill.unique_id }}</h6>
+      <small><strong>Age:</strong> {{ refill.age_display }}</small>
+      <small><strong>Sex:</strong> {{ refill.sex }}</small>
+      <small><strong>Facility:</strong> {{ refill.facility.name }}</small>
+      <small><strong>Last Pickup:</strong> {{ refill.last_pickup_date|default:"-" }}</small>
+      <small><strong>Refill (Days):</strong> {{ refill.months_of_refill_days|default:"-" }}</small>
+      <small class="text-danger"><strong>Next Appointment:</strong> {{ refill.next_appointment|default:"-" }}</small>
+      <small><strong>Regimen:</strong> {{ refill.current_regimen|default:"-" }}</small>
+      <small><strong>Case Manager:</strong> {{ refill.case_manager|default:"-" }}</small>
+      <small><strong>VL Status:</strong> {{ refill.vl_status }}</small>
+      <small><strong>TB Screening:</strong> {{ refill.tb_screening_date_display }}</small>
+      <small><strong>TB Type:</strong> {{ refill.tb_screening_type_display }}</small>
+      <small><strong>TB Status:</strong> {{ refill.tb_status_display }}</small>
+      <small><strong>TB Sample Collected:</strong> {{ refill.tb_sample_collection_date_display }}</small>
+      <small><strong>TB Result Received:</strong> {{ refill.tb_result_received_date_display }}</small>
+      <small><strong>TB Diagnostic Result:</strong> {{ refill.tb_diagnostic_result_display }}</small>
+      <small><strong>Remark:</strong> {{ refill.remark|truncatechars:80|default:"—" }}</small>
     </div>
+    {% empty %}
+    <div class="text-center">No {{ period_name|lower }} refills available.</div>
+    {% endfor %}
+    {% endfor %}
+  </div>
 
 </div>
-<br>
-<a href="{% url 'track_refills' %}?download=true" class="btn btn-success">
-    Download Track Refills Excel
-</a>
-<br> <br>
 
-
+<!-- Download Excel Button -->
+<div class="text-end mb-4">
+  <a href="{% url 'export_track_refills_excel' %}" class="btn btn-success">
+    <i class="bi bi-download"></i> Download Excel
+  </a>
+</div>
 {% endblock %}
-
-
-

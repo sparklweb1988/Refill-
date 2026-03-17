@@ -2,10 +2,21 @@
 {% block content %}
 
 <style>
-  .overdue { background-color: #f8d7da !important; }
-  .iit-approaching { background-color: #fff3cd !important; }
-  .card-mobile { margin-bottom: 1rem; }
-  .badge-mobile { margin-right: 0.5rem; }
+  .overdue {
+    background-color: #f8d7da !important;
+  }
+
+  .iit-approaching {
+    background-color: #fff3cd !important;
+  }
+
+  .card-mobile {
+    margin-bottom: 1rem;
+  }
+
+  .badge-mobile {
+    margin-right: 0.5rem;
+  }
 </style>
 
 <div class="container-fluid">
@@ -15,14 +26,16 @@
     <select name="facility" class="form-select w-auto" onchange="this.form.submit()">
       <option value="">All Facilities</option>
       {% for facility in facilities %}
-        <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>{{ facility.name }}</option>
+      <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+        {{ facility.name }}
+      </option>
       {% endfor %}
     </select>
 
     <input type="text" name="search_unique_id" value="{{ search_unique_id|default:'' }}" class="form-control w-auto">
     <input type="date" name="start_date" value="{{ selected_start_date }}" class="form-control w-auto">
     <input type="date" name="end_date" value="{{ selected_end_date }}" class="form-control w-auto">
-    
+
     <button type="submit" class="btn btn-primary">Filter</button>
   </form>
 
@@ -39,78 +52,88 @@
         <thead class="table-dark">
           <tr>
             <th>Unique ID</th>
+            <th>Age</th>
             <th>Sex</th>
             <th>Facility</th>
             <th>Case Manager</th>
             <th>Next Appointment</th>
-            <th>VL Eligibility</th>
+            <th>VL Status</th>
             <th>EAC Status</th>
             <th>AHD Eligibility</th>
             <th>TPT Status</th>
+            <!-- <th>TB Screening Date</th>
+            <th>TB Screening Type</th> -->
+            <th>TB Status</th>
+            <!-- <th>TB Sample Collected</th>
+            <th>TB Result Received</th>
+            <th>TB Diagnostic Result</th> -->
             <th>Remark</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-        {% for refill in period.page_obj %}
+          {% for refill in period.page_obj %}
           <tr class="{% if refill.days_missed_display > 0 %}overdue{% endif %}">
             <td>{{ refill.unique_id }}</td>
+            <td>{{ refill.age }}</td>
             <td>{{ refill.sex }}</td>
             <td>{{ refill.facility.name }}</td>
             <td>{{ refill.case_manager }}</td>
             <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
-          
 
-            <!-- VL Eligibility -->
+            <!-- VL Status -->
             <td>
-              {% if refill.is_vl_eligible %}
-                <span class="badge bg-success">Eligible</span>
+              {% if refill.vl_result %}
+              {% if refill.is_suppressed %}
+              <span class="badge bg-success">Suppressed (&lt;1000)</span>
               {% else %}
-                <span class="badge bg-secondary">Not Eligible</span>
+              <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+              {% endif %}
+              {% else %}
+              <span class="badge bg-secondary">No VL</span>
               {% endif %}
             </td>
 
-            <!-- EAC Status -->
+            <!-- EAC -->
             <td>
-              {% if refill.eac %}
-                {% if refill.post_eac_vl_due %}
-                  <span class="badge bg-success text-dark">Post-EAC VL Due</span>
-                {% else %}
-                  <span class="badge bg-warning text-dark">{{ refill.eac_status }}</span>
-                {% endif %}
-                {% if refill.eac_sessions_completed %}
-                  <br><small>{{ refill.eac_sessions_completed }}/3 Sessions</small>
-                {% endif %}
-              {% else %}
-                <span class="badge bg-secondary">Not Eligible</span>
-              {% endif %}
+              <span class="badge {% if refill.eac %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                {{ refill.eac_status }}
+              </span>
             </td>
 
-            <!-- AHD Eligibility -->
+            <!-- AHD -->
             <td>
-              {% if refill.ahd %}
-                <span class="badge bg-danger">Eligible</span>
-              {% else %}
-                <span class="badge bg-secondary">Not Eligible</span>
-              {% endif %}
+              <span class="badge {% if refill.ahd %}bg-danger{% else %}bg-secondary{% endif %}">
+                {% if refill.ahd %}Eligible{% else %}Not Eligible{% endif %}
+              </span>
             </td>
 
-            <!-- TPT Status -->
+            <!-- TPT -->
             <td>{{ refill.tpt_status }}</td>
 
-            <!-- Remark -->
+            <!-- TB Columns using get_FIELD_display for choice fields -->
+            <!-- <td>{{ refill.tb_screening_date|default:"-" }}</td>
+            <td>{{ refill.get_tb_screening_type_display|default:"-" }}</td> -->
+            <td>{{ refill.get_tb_status_display|default:"-" }}</td>
+            <!-- <td>{{ refill.tb_sample_collection_date|default:"-" }}</td>
+            <td>{{ refill.tb_result_received_date|default:"-" }}</td>
+            <td>{{ refill.get_tb_diagnostic_result_display|default:"-" }}</td> -->
+
             <td>{{ refill.remark|default:"" }}</td>
 
             <td>
               {% if refill.missed_appointment %}
-                <span class="badge bg-danger">Missed</span><br>
+              <span class="badge bg-danger">Missed</span><br>
               {% endif %}
-              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add Refill</a>
+              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add
+                Refill</a>
             </td>
           </tr>
-        {% empty %}
-          <tr><td colspan="12" class="text-center">No records</td></tr>
-        {% endfor %}
+          {% empty %}
+          <tr>
+            <td colspan="18" class="text-center">No records</td>
+          </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
@@ -121,28 +144,47 @@
       <div class="card card-mobile {% if refill.days_missed_display > 0 %}overdue{% endif %}">
         <div class="card-body">
           <p><strong>Unique ID:</strong> {{ refill.unique_id }}</p>
-          <p><strong>Sex:</strong> {{ refill.sex }}</p>
+          <p><strong>Age / Sex:</strong> {{ refill.age }} / {{ refill.sex }}</p>
           <p><strong>Facility:</strong> {{ refill.facility.name }}</p>
           <p><strong>Case Manager:</strong> {{ refill.case_manager }}</p>
           <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
-         
+          <p><strong>VL Status:</strong>
+            {% if refill.vl_result %}
+            {% if refill.is_suppressed %}
+            Suppressed (&lt;1000)
+            {% else %}
+            Not Suppressed (≥1000)
+            {% endif %}
+            {% else %}
+            No VL
+            {% endif %}
+          </p>
+
+          <p>
+            <strong>TB:</strong><br>
+            <!-- Screening: {{ refill.tb_screening_date|default:"-" }}<br>
+            Type: {{ refill.get_tb_screening_type_display|default:"-" }}<br> -->
+            Status: {{ refill.get_tb_status_display|default:"-" }}<br>
+            <!-- Sample: {{ refill.tb_sample_collection_date|default:"-" }}<br>
+            Result: {{ refill.tb_result_received_date|default:"-" }}<br>
+            Diagnostic: {{ refill.get_tb_diagnostic_result_display|default:"-" }} -->
+          </p>
+
           <p><strong>Remark:</strong> {{ refill.remark|default:"" }}</p>
 
           <p>
-            <span class="badge badge-mobile {% if refill.is_vl_eligible %}bg-success{% else %}bg-secondary{% endif %}">VL</span>
-            <span class="badge badge-mobile {% if refill.eac %}bg-warning text-dark{% else %}bg-secondary{% endif %}">EAC</span>
+            <span
+              class="badge badge-mobile {% if refill.eac %}bg-warning text-dark{% else %}bg-secondary{% endif %}">EAC</span>
             <span class="badge badge-mobile {% if refill.ahd %}bg-danger{% else %}bg-secondary{% endif %}">AHD</span>
             <span class="badge badge-mobile bg-info text-dark">TPT: {{ refill.tpt_status }}</span>
           </p>
 
-          {% if refill.eac and refill.eac_sessions_completed %}
-            <p><small>{{ refill.eac_sessions_completed }}/3 EAC Sessions Completed</small></p>
-          {% endif %}
-          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add Refill</a>
+          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add
+            Refill</a>
         </div>
       </div>
       {% empty %}
-        <p class="text-center">No records</p>
+      <p class="text-center">No records</p>
       {% endfor %}
     </div>
 
@@ -153,16 +195,16 @@
       </span>
       <div>
         {% if period.page_obj.has_previous %}
-          <a class="btn btn-sm btn-outline-secondary"
-             href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
-            Prev
-          </a>
+        <a class="btn btn-sm btn-outline-secondary"
+          href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
+          Prev
+        </a>
         {% endif %}
         {% if period.page_obj.has_next %}
-          <a class="btn btn-sm btn-outline-secondary"
-             href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
-            Next
-          </a>
+        <a class="btn btn-sm btn-outline-secondary"
+          href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
+          Next
+        </a>
         {% endif %}
       </div>
     </div>
@@ -172,10 +214,11 @@
 
   <!-- Download Excel Button -->
   <div class="text-end mb-4">
-    <a href="?{{ query_params }}&download=1" class="btn btn-success">
+    <a href="{% url 'export_refills_excel' %}" class="btn btn-success">
       <i class="bi bi-download"></i> Download Excel
     </a>
   </div>
+
 
 </div>
 {% endblock %}

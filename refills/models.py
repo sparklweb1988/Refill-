@@ -7,7 +7,6 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 
 
-
 class Facility(models.Model):
     name = models.CharField(max_length=255, unique=True)
     code = models.CharField(max_length=50, unique=True)
@@ -31,8 +30,14 @@ class Facility(models.Model):
 
 
 
+
 class Refill(models.Model):
-    SEX_CHOICES = (('Male', 'Male'), ('Female', 'Female'))
+
+    SEX_CHOICES = (
+        ('Male', 'Male'),
+        ('Female', 'Female')
+    )
+
     STATUS_CHOICES = (
         ('Active', 'Active'),
         ('Active Restart', 'Active Restart'),
@@ -40,21 +45,53 @@ class Refill(models.Model):
         ('Inactive', 'Inactive')
     )
 
-    facility = models.ForeignKey("Facility", on_delete=models.CASCADE, related_name="refills")
+    TB_SCREENING_TYPE_CHOICES = (
+        ('Symptom Screening', 'Symptom Screening'),
+        ('Chest X-ray', 'Chest X-ray'),
+        ('GeneXpert', 'GeneXpert'),
+        ('LAM', 'LAM')
+    )
+
+    TB_STATUS_CHOICES = (
+        ('No TB Symptoms', 'No TB Symptoms'),
+        ('Presumptive TB', 'Presumptive TB'),
+        ('TB Confirmed', 'TB Confirmed')
+    )
+
+    TB_RESULT_CHOICES = (
+        ('Positive', 'Positive'),
+        ('Negative', 'Negative'),
+        ('Indeterminate', 'Indeterminate')
+    )
+
+    TB_CASCADE_CHOICES = (
+        ('Presumptive', 'Presumptive'),
+        ('Confirmed', 'Confirmed'),
+        ('Negative', 'Negative'),
+    )
+
+    facility = models.ForeignKey(
+        "Facility",
+        on_delete=models.CASCADE,
+        related_name="refills"
+    )
+
+    tb_cascade_status = models.CharField(
+        max_length=50,
+        choices=TB_CASCADE_CHOICES,
+        blank=True,
+        null=True
+    )
+
     unique_id = models.CharField(max_length=100)
-    last_pickup_date = models.DateField(null=True, blank=True)
+    age = models.IntegerField(null=True, blank=True)
     sex = models.CharField(max_length=10, choices=SEX_CHOICES)
+    last_pickup_date = models.DateField(null=True, blank=True)
     months_of_refill_days = models.DecimalField(max_digits=4, decimal_places=2)
     current_regimen = models.CharField(max_length=255)
     case_manager = models.CharField(max_length=255)
     remark = models.TextField(blank=True, null=True)
-
-    current_art_status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='Active'
-    )
-
+    current_art_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
     next_appointment = models.DateField(blank=True, null=True)
     expected_iit_date = models.DateField(blank=True, null=True)
     missed_appointment = models.BooleanField(default=False)
@@ -72,6 +109,14 @@ class Refill(models.Model):
     # ================= EAC =================
     eac_start_date = models.DateField(blank=True, null=True)
     eac_sessions_completed = models.IntegerField(default=0)
+
+    # ================= TB =================
+    tb_screening_date = models.DateField(blank=True, null=True)
+    tb_screening_type = models.CharField(max_length=50, choices=TB_SCREENING_TYPE_CHOICES, blank=True, null=True)
+    tb_status = models.CharField(max_length=50, choices=TB_STATUS_CHOICES, blank=True, null=True)
+    tb_sample_collection_date = models.DateField(blank=True, null=True)
+    tb_result_received_date = models.DateField(blank=True, null=True)
+    tb_diagnostic_result = models.CharField(max_length=50, choices=TB_RESULT_CHOICES, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -103,16 +148,43 @@ class Refill(models.Model):
     # ================= VL ELIGIBILITY =================
     @property
     def is_vl_eligible(self):
+        """
+        Determines VL eligibility based on ART duration, age, and last sample collection:
+        1. Must be on ART > 6 months.
+        2. Age > 15: annual sample at same month as previous collection.
+        3. Age < 15: sample every 6 months.
+        """
         today = timezone.now().date()
+
+    # ART must have started
         if not self.art_start_date:
             return False
+
+    # ART must be > 6 months
         if self.art_start_date + relativedelta(months=6) > today:
             return False
-        if not self.vl_sample_collection_date:
-            return True
-        return self.vl_sample_collection_date + relativedelta(months=12) <= today
 
+    # No sample collected ever → eligible
+        if not self.vl_sample_collection_date:
+         return True
+
+    # Calculate next due date based on age
+        if self.age is None:
+        # fallback: use adult rule
+         next_due_date = self.vl_sample_collection_date + relativedelta(months=12)
+        elif self.age > 15:
+        # adult: annual sample at same month as last
+            next_due_date = self.vl_sample_collection_date + relativedelta(years=1)
+        else:
+        # child: sample every 6 months
+            next_due_date = self.vl_sample_collection_date + relativedelta(months=6)
+
+    # Eligible if today is past the next due date
+        return today >= next_due_date
+    
+    
     # ================= SUPPRESSION =================
+    
     @property
     def is_suppressed(self):
         if self.vl_result is None:
@@ -124,7 +196,7 @@ class Refill(models.Model):
     def ahd(self):
         return self.current_art_status in ["Restart", "Active Restart"]
 
-    # ================= EAC (MODEL-DRIVEN) =================
+    # ================= EAC =================
     @property
     def eac(self):
         return (
@@ -148,7 +220,11 @@ class Refill(models.Model):
 
     @property
     def post_eac_vl_due(self):
-        return self.eac and self.eac_sessions_completed >= 3
+        """
+        Returns True if patient has completed 3 EAC sessions and
+        VL result is still high (>=1000), meaning Post-EAC VL is due.
+        """
+        return self.eac_sessions_completed >= 3 and self.vl_result is not None and self.vl_result >= 1000
 
     # ================= TPT =================
     @property
@@ -162,20 +238,7 @@ class Refill(models.Model):
             return "Overdue"
         return "Ongoing"
 
-    # ================= VL STATUS =================
-    @property
-    def vl_status(self):
-        if not self.art_start_date and self.vl_result is None:
-            return "Not Eligible"          # changed from "N/A"
-        elif self.is_vl_eligible and self.vl_result is None:
-            return "Eligible"              # changed from "Due" to match your wording
-        elif self.is_suppressed:
-            return "Suppressed"
-        elif self.vl_result is not None:
-            return "Unsuppressed"
-        return "Not Eligible"              # fallback instead of "N/A"
-
-    # ================= IIT STATUS =================
+    # ================= IIT =================
     @property
     def days_missed(self):
         if not self.next_appointment:

@@ -5,21 +5,22 @@
   .overdue {
     background-color: #f8d7da !important;
   }
-  /* Mobile card styling */
+
   .cards-container {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
+
   .refill-card {
     padding: 1rem;
   }
+
   .refill-card small {
     display: block;
     margin-bottom: 0.5rem;
   }
 
-  /* Responsive Tables for small screens */
   @media (max-width: 767px) {
     .table-responsive {
       display: block;
@@ -27,6 +28,7 @@
       -webkit-overflow-scrolling: touch;
       max-width: 100%;
     }
+
     .refill-card h5 {
       font-size: 1rem;
     }
@@ -39,9 +41,9 @@
     <select name="facility" onchange="this.form.submit()" class="form-select">
       <option value="">All Facilities</option>
       {% for facility in facilities %}
-        <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %} selected {% endif %}>
-          {{ facility.name }}
-        </option>
+      <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %} selected {% endif %}>
+        {{ facility.name }}
+      </option>
       {% endfor %}
     </select>
   </div>
@@ -50,9 +52,9 @@
     <select name="case_manager" onchange="this.form.submit()" class="form-select">
       <option value="">All Case Managers</option>
       {% for manager in case_managers %}
-        <option value="{{ manager }}" {% if manager == selected_case_manager %} selected {% endif %}>
-          {{ manager }}
-        </option>
+      <option value="{{ manager }}" {% if manager == selected_case_manager %} selected {% endif %}>
+        {{ manager }}
+      </option>
       {% endfor %}
     </select>
   </div>
@@ -61,51 +63,57 @@
 <!-- ================= MOBILE VIEW: CARDS ================= -->
 <div class="d-block d-md-none cards-container">
   {% for refill in refills %}
-    <div class="card {% if refill.next_appointment and refill.next_appointment < today %} bg-danger {% else %} bg-light {% endif %} refill-card">
-      <div class="card-body">
-        <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
-        <small>Sex: {{ refill.sex }}</small><br>
-        <small>Last Pickup: {{ refill.last_pickup_date }}</small><br>
-        <small>Refill (Days): {{ refill.months_of_refill_days }}</small><br>
-        <small>Next Appointment: {{ refill.next_appointment }}</small><br>
-        <small>Regimen: {{ refill.current_regimen }}</small><br>
-        <small>Case Manager: {{ refill.case_manager }}</small><br>
+  <div class="card {% if refill.days_missed_display > 0 %} bg-danger {% else %} bg-light {% endif %} refill-card">
+    <div class="card-body">
+      <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
+      <small>Age: {{ refill.age_display }}</small>
+      <small>Sex: {{ refill.sex }}</small>
+      <small>Last Pickup: {{ refill.last_pickup_date }}</small>
+      <small>Refill (Days): {{ refill.months_of_refill_days }}</small>
+      <small>Next Appointment: {{ refill.next_appointment }}</small>
+      <small>Regimen: {{ refill.current_regimen }}</small>
+      <small>Case Manager: {{ refill.case_manager }}</small>
 
-        <!-- VL Eligibility Status -->
-        <small>VL Status: {{ refill.vl_status }}</small><br>
+      <!-- TB Columns -->
+      <!-- <small>TB Cascade: {{ refill.tb_cascade_status_display }}</small>
+      <small>TB Screening: {{ refill.tb_screening_type_display }}</small> -->
+      <small>TB Status: {{ refill.tb_status_display }}</small>
+      <!-- <small>TB Sample Collection: {{ refill.tb_sample_collection_date_display }}</small>
+      <small>TB Result Received: {{ refill.tb_result_received_date_display }}</small>
+      <small>TB Diagnostic: {{ refill.tb_diagnostic_result_display }}</small> -->
 
-        <!-- EAC Status -->
-        <small>EAC Status: 
-          {% if refill.eac %}
-            {% if refill.post_eac_vl_due %}
-              Post-EAC VL Due
-            {% else %}
-              {{ refill.eac_status }}
-            {% endif %}
-          {% else %}
-            Not Eligible
-          {% endif %}
-        </small><br>
+      <!-- VL -->
+      <small>VL Status: {{ refill.vl_status_display }}</small>
 
-        <!-- AHD Status -->
-        <small>AHD Status: {% if refill.ahd %}Eligible{% else %}Not Eligible{% endif %}</small><br>
-
-        <!-- TPT Status -->
-        <small>TPT Status: {{ refill.tpt_status }}</small><br>
-
-        {% if refill.missed_appointment %}
-          <span class="badge bg-danger">Missed Appointment</span><br>
+      <!-- EAC -->
+      <small>EAC Status:
+        {% if refill.eac %}
+        {% if refill.post_eac_vl_due_display %}Post-EAC VL Due{% else %}{{ refill.eac_status_display }}{% endif %}
+        {% else %}
+        Not Eligible
         {% endif %}
-        
-        <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm mt-2">Add Refills</a>
-      </div>
+      </small>
+
+      <!-- AHD -->
+      <small>AHD Status: {{ refill.ahd_display }}</small>
+
+      <!-- TPT -->
+      <small>TPT Status: {{ refill.tpt_status }}</small>
+
+      {% if refill.missed_appointment %}
+      <span class="badge bg-danger">Missed Appointment</span>
+      {% endif %}
+
+      <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm mt-2">Add
+        Refill</a>
     </div>
+  </div>
   {% empty %}
-    <div class="card bg-light refill-card">
-      <div class="card-body">
-        <small>No daily refills today</small>
-      </div>
+  <div class="card bg-light refill-card">
+    <div class="card-body">
+      <small>No daily refills today</small>
     </div>
+  </div>
   {% endfor %}
 </div>
 
@@ -117,6 +125,7 @@
       <thead class="table-dark">
         <tr>
           <th>Unique ID</th>
+          <th>Age</th>
           <th>Sex</th>
           <th>Facility</th>
           <th>Last Pickup</th>
@@ -124,17 +133,24 @@
           <th class="text-danger">Next Appointment</th>
           <th>Regimen</th>
           <th>Case Manager</th>
-          <th>VL Eligibility Status</th>
+          <!-- <th>TB Cascade</th>
+          <th>TB Screening</th> -->
+          <th>TB Status</th>
+          <!-- <th>TB Sample Collection</th>
+          <th>TB Result Received</th>
+          <th>TB Diagnostic</th> -->
+          <th>VL Status</th>
           <th>EAC Status</th>
           <th>AHD Eligibility</th>
           <th>TPT Status</th>
-          <th>Actions</th> 
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for refill in refills %}
-        <tr {% if refill.next_appointment and refill.next_appointment < today %} class="overdue" {% endif %}>
+        <tr {% if refill.days_missed_display > 0 %}class="overdue" {% endif %}>
           <td>{{ refill.unique_id }}</td>
+          <td>{{ refill.age_display }}</td>
           <td>{{ refill.sex }}</td>
           <td>{{ refill.facility.name }}</td>
           <td>{{ refill.last_pickup_date }}</td>
@@ -142,39 +158,33 @@
           <td>{{ refill.next_appointment }}</td>
           <td>{{ refill.current_regimen }}</td>
           <td>{{ refill.case_manager }}</td>
-
-          <!-- VL Eligibility Status -->
-          <td>{{ refill.vl_status }}</td>
-
-          <!-- EAC Status -->
+          <!-- <td>{{ refill.tb_cascade_status_display }}</td>
+          <td>{{ refill.tb_screening_type_display }}</td> -->
+          <td>{{ refill.tb_status_display }}</td>
+          <!-- <td>{{ refill.tb_sample_collection_date_display }}</td>
+          <td>{{ refill.tb_result_received_date_display }}</td>
+          <td>{{ refill.tb_diagnostic_result_display }}</td> -->
+          <td>{{ refill.vl_status_display }}</td>
           <td>
             {% if refill.eac %}
-              {% if refill.post_eac_vl_due %}
-                Post-EAC VL Due
-              {% else %}
-                {{ refill.eac_status }}
-              {% endif %}
+            {% if refill.post_eac_vl_due_display %}Post-EAC VL Due{% else %}{{ refill.eac_status_display }}{% endif %}
             {% else %}
-              Not Eligible
+            Not Eligible
             {% endif %}
           </td>
-
-          <!-- AHD Status -->
-          <td>{% if refill.ahd %}Eligible{% else %}Not Eligible{% endif %}</td>
-
-          <!-- TPT Status -->
+          <td>{{ refill.ahd_display }}</td>
           <td>{{ refill.tpt_status }}</td>
-
           <td>
             {% if refill.missed_appointment %}
-              <span class="badge bg-danger">Missed Appointment</span><br>
+            <span class="badge bg-danger">Missed Appointment</span><br>
             {% endif %}
-            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Add Refills</a>
+            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Add
+              Refill</a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="13" class="text-center">No daily refills today</td>
+          <td colspan="20" class="text-center">No daily refills today</td>
         </tr>
         {% endfor %}
       </tbody>

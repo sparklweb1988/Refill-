@@ -165,5 +165,71 @@
 
     </div>
 
+    <!-- TB CASCADE SECTION -->
+    <div class="mt-5">
+
+        <h4 class="mb-3">TB Cascade</h4>
+
+        <div class="row g-3">
+
+            <div class="col-sm-6 col-md-4">
+                <div class="card text-white bg-primary shadow">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">TB Screened</h6>
+                        <h2 class="card-text">{{ tb_screened|default:0 }}</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-md-4">
+                <div class="card text-dark bg-warning shadow">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Presumptive TB</h6>
+                        <h2 class="card-text">{{ tb_presumptive|default:0 }}</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-md-4">
+                <div class="card text-white bg-info shadow">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">TB Sample Collected</h6>
+                        <h2 class="card-text">{{ tb_sample_collected|default:0 }}</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-md-4">
+                <div class="card text-white bg-secondary shadow">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">TB Result Received</h6>
+                        <h2 class="card-text">{{ tb_result_received|default:0 }}</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-md-4">
+                <div class="card text-white bg-danger shadow">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">TB Positive</h6>
+                        <h2 class="card-text">{{ tb_positive|default:0 }}</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-md-4">
+                <div class="card text-white bg-success shadow">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">TB Negative</h6>
+                        <h2 class="card-text">{{ tb_negative|default:0 }}</h2>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
+
 {% endblock %}

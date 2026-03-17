@@ -77,12 +77,23 @@ def logout_view(request):
 VALID_REFILL_MONTHS = [0.5, 1, 2, 2.8, 3, 4, 5, 6]
 
 def import_refills_from_excel(file):
+<<<<<<< HEAD
   MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
   if file.size > MAX_FILE_SIZE:
     raise ValidationError("File size exceeds 50 MB limit")
+=======
+
+    MAX_FILE_SIZE =  5 * 1024 * 1024 * 1024  # 5 GB
+
+    if file.size > MAX_FILE_SIZE:
+        raise ValidationError("File size exceeds 50 MB limit")
+
+>>>>>>> 884e755 (tb added)
     file.seek(0)
+
     df = pd.read_excel(file)
+
     df.columns = df.columns.str.strip().str.replace('\n','').str.replace('\r','').str.lower()
 
     required_columns_map = {
@@ -94,86 +105,194 @@ def import_refills_from_excel(file):
         'sex': 'sex',
         'current art status': 'current art status',
         'facility name': 'facility name',
+
         'art start date (yyyy-mm-dd)': 'art start date (yyyy-mm-dd)',
         'date of viral load sample collection (yyyy-mm-dd)': 'date of viral load sample collection (yyyy-mm-dd)',
         'current viral load (c/ml)': 'current viral load (c/ml)',
+
         'date of tpt start (yyyy-mm-dd)': 'date of tpt start (yyyy-mm-dd)',
         'tpt completion date (yyyy-mm-dd)': 'tpt completion date (yyyy-mm-dd)',
+
         'date of commencement of eac (yyyy-mm-dd)': 'date of commencement of eac (yyyy-mm-dd)',
-        'number of eac sessions completed': 'number of eac sessions completed'
+        'number of eac sessions completed': 'number of eac sessions completed',
+
+        # NEW TB COLUMNS
+        'age': 'age',
+        'date of tb screening (yyyy-mm-dd)': 'date of tb screening (yyyy-mm-dd)',
+        'tb screening type': 'tb screening type',
+        'tb status': 'tb status',
+        'date of tb sample collection (yyyy-mm-dd)': 'date of tb sample collection (yyyy-mm-dd)',
+        'date of tb diagnostic result received (yyyy-mm-dd)': 'date of tb diagnostic result received (yyyy-mm-dd)',
+        'tb diagnostic result': 'tb diagnostic result',
     }
 
     missing_columns = [col for col in required_columns_map.values() if col not in df.columns]
+
     if missing_columns:
         raise ValidationError(f"Missing column(s): {', '.join(missing_columns)}")
 
     df = df[df['current art status'].isin(['Active', 'Active Restart'])]
+
     if df.empty:
         raise ValidationError("No Active or Active Restart patients found.")
 
     df['facility name'] = df['facility name'].astype(str).str.strip()
-    facilities = {f.name.strip(): f for f in Facility.objects.filter(name__in=df['facility name'].unique())}
+
+    facilities = {
+        f.name.strip(): f for f in Facility.objects.filter(
+            name__in=df['facility name'].unique()
+        )
+    }
+
     missing_facilities = set(df['facility name'].unique()) - set(facilities.keys())
+
     if missing_facilities:
-        raise ValidationError(f"Facilities not in system: {', '.join(missing_facilities)}")
+        raise ValidationError(
+            f"Facilities not in system: {', '.join(missing_facilities)}"
+        )
 
     validated_rows = []
+
     for _, row in df.iterrows():
+
         unique_id = row['unique id']
+
         try:
-            last_pickup_date = pd.to_datetime(row['last pickup date (yyyy-mm-dd)']).date()
+            last_pickup_date = pd.to_datetime(
+                row['last pickup date (yyyy-mm-dd)']
+            ).date()
         except Exception:
             raise ValidationError(f"Invalid Last Pickup Date for {unique_id}")
+
         try:
             months = float(row['months of arv refill'])
         except Exception:
-            raise ValidationError(f"Invalid Months of ARV Refill for {unique_id}")
-        if months not in VALID_REFILL_MONTHS:
-            raise ValidationError(f"Invalid refill months {months} for {unique_id}")
-        facility_obj = facilities[row['facility name']]
-        next_appointment = last_pickup_date + timedelta(days=months*30)
+            raise ValidationError(
+                f"Invalid Months of ARV Refill for {unique_id}"
+            )
 
-        # Optional fields
-        art_start_date = pd.to_datetime(row['art start date (yyyy-mm-dd)']).date() if pd.notnull(row['art start date (yyyy-mm-dd)']) else None
-        vl_sample_collection_date = pd.to_datetime(row['date of viral load sample collection (yyyy-mm-dd)']).date() if pd.notnull(row['date of viral load sample collection (yyyy-mm-dd)']) else None
-        vl_result = int(row['current viral load (c/ml)']) if pd.notnull(row['current viral load (c/ml)']) else None
-        tpt_start_date = pd.to_datetime(row['date of tpt start (yyyy-mm-dd)']).date() if pd.notnull(row['date of tpt start (yyyy-mm-dd)']) else None
-        tpt_completion_date = pd.to_datetime(row['tpt completion date (yyyy-mm-dd)']).date() if pd.notnull(row['tpt completion date (yyyy-mm-dd)']) else None
-        tpt_expected_completion = tpt_start_date + timedelta(days=180) if tpt_start_date else None
-        eac_start_date = pd.to_datetime(row['date of commencement of eac (yyyy-mm-dd)']).date() if pd.notnull(row['date of commencement of eac (yyyy-mm-dd)']) else None
-        eac_sessions_completed = int(row['number of eac sessions completed']) if pd.notnull(row['number of eac sessions completed']) else 0
+        if months not in VALID_REFILL_MONTHS:
+            raise ValidationError(
+                f"Invalid refill months {months} for {unique_id}"
+            )
+
+        facility_obj = facilities[row['facility name']]
+
+        next_appointment = last_pickup_date + timedelta(days=months * 30)
+
+        # ================= OPTIONAL FIELDS =================
+
+        art_start_date = pd.to_datetime(
+            row['art start date (yyyy-mm-dd)']
+        ).date() if pd.notnull(row['art start date (yyyy-mm-dd)']) else None
+
+        vl_sample_collection_date = pd.to_datetime(
+            row['date of viral load sample collection (yyyy-mm-dd)']
+        ).date() if pd.notnull(row['date of viral load sample collection (yyyy-mm-dd)']) else None
+
+        vl_result = int(row['current viral load (c/ml)']) if pd.notnull(
+            row['current viral load (c/ml)']) else None
+
+        tpt_start_date = pd.to_datetime(
+            row['date of tpt start (yyyy-mm-dd)']
+        ).date() if pd.notnull(row['date of tpt start (yyyy-mm-dd)']) else None
+
+        tpt_completion_date = pd.to_datetime(
+            row['tpt completion date (yyyy-mm-dd)']
+        ).date() if pd.notnull(row['tpt completion date (yyyy-mm-dd)']) else None
+
+        tpt_expected_completion = (
+            tpt_start_date + timedelta(days=180)
+            if tpt_start_date else None
+        )
+
+        eac_start_date = pd.to_datetime(
+            row['date of commencement of eac (yyyy-mm-dd)']
+        ).date() if pd.notnull(row['date of commencement of eac (yyyy-mm-dd)']) else None
+
+        eac_sessions_completed = int(
+            row['number of eac sessions completed']
+        ) if pd.notnull(row['number of eac sessions completed']) else 0
+
+        # ================= NEW TB FIELDS =================
+
+        age = int(row['age']) if pd.notnull(row['age']) else None
+
+        tb_screening_date = pd.to_datetime(
+            row['date of tb screening (yyyy-mm-dd)']
+        ).date() if pd.notnull(row['date of tb screening (yyyy-mm-dd)']) else None
+
+        tb_screening_type = str(row['tb screening type']).strip() if pd.notnull(
+            row['tb screening type']) else None
+
+        tb_status = str(row['tb status']).strip() if pd.notnull(
+            row['tb status']) else None
+
+        tb_sample_collection_date = pd.to_datetime(
+            row['date of tb sample collection (yyyy-mm-dd)']
+        ).date() if pd.notnull(
+            row['date of tb sample collection (yyyy-mm-dd)']
+        ) else None
+
+        tb_result_received_date = pd.to_datetime(
+            row['date of tb diagnostic result received (yyyy-mm-dd)']
+        ).date() if pd.notnull(
+            row['date of tb diagnostic result received (yyyy-mm-dd)']
+        ) else None
+
+        tb_diagnostic_result = str(row['tb diagnostic result']).strip() if pd.notnull(
+            row['tb diagnostic result']) else None
 
         validated_rows.append(
-    Refill(
-        facility=facility_obj,
-        unique_id=unique_id,
-        last_pickup_date=last_pickup_date,
-        months_of_refill_days=months,
-        next_appointment=next_appointment,
-        current_regimen=str(row['current art regimen']).strip(),
-        case_manager=str(row['case manager']).strip(),
-        sex=str(row['sex']).strip(),
-        current_art_status=row['current art status'].strip(),
 
-        # VL
-        art_start_date=art_start_date,
-        vl_sample_collection_date=vl_sample_collection_date,
-        vl_result=vl_result,
+            Refill(
 
-        # TPT
-        tpt_start_date=tpt_start_date,
-        tpt_completion_date=tpt_completion_date,
-        tpt_expected_completion=tpt_expected_completion,
+                facility=facility_obj,
+                unique_id=unique_id,
 
-        # EAC (ONLY REAL FIELDS)
-        eac_start_date=eac_start_date,
-        eac_sessions_completed=eac_sessions_completed,
-    )
-)
+                last_pickup_date=last_pickup_date,
+                months_of_refill_days=months,
+                next_appointment=next_appointment,
+
+                current_regimen=str(row['current art regimen']).strip(),
+                case_manager=str(row['case manager']).strip(),
+                sex=str(row['sex']).strip(),
+
+                current_art_status=row['current art status'].strip(),
+
+                # VL
+                art_start_date=art_start_date,
+                vl_sample_collection_date=vl_sample_collection_date,
+                vl_result=vl_result,
+
+                # TPT
+                tpt_start_date=tpt_start_date,
+                tpt_completion_date=tpt_completion_date,
+                tpt_expected_completion=tpt_expected_completion,
+
+                # EAC
+                eac_start_date=eac_start_date,
+                eac_sessions_completed=eac_sessions_completed,
+
+                # NEW TB
+                age=age,
+                tb_screening_date=tb_screening_date,
+                tb_screening_type=tb_screening_type,
+                tb_status=tb_status,
+                tb_sample_collection_date=tb_sample_collection_date,
+                tb_result_received_date=tb_result_received_date,
+                tb_diagnostic_result=tb_diagnostic_result,
+            )
+
+        )
+
     facility_ids = {obj.facility.id for obj in validated_rows}
+
     with transaction.atomic():
+
         for facility_id in facility_ids:
             Refill.objects.filter(facility_id=facility_id).delete()
+
         Refill.objects.bulk_create(validated_rows, batch_size=1000)
 
     return len(validated_rows)
@@ -187,8 +306,8 @@ def upload_excel(request):
             return redirect('upload_excel')
         if form.is_valid():
             excel_file = form.cleaned_data['file']
-            if excel_file.size > 1073741824:
-                messages.error(request, "File size exceeds 1GB limit.")
+            if excel_file.size >  50 * 1024 * 1024 :
+                messages.error(request, "File size exceeds 50 GB limit.")
                 return redirect('upload_excel')
             try:
                 count = import_refills_from_excel(excel_file)
@@ -246,7 +365,6 @@ def upload_excel(request):
 
 
 # DASHBOARD
-
 @login_required
 def dashboard(request):
     today = timezone.now().date()
@@ -277,6 +395,14 @@ def dashboard(request):
     vl_sample_collected = 0
     vl_result_received = 0
     suppressed_count = 0
+
+    # ---------------- TB CASCADE (CURRENT MONTH ONLY) ----------------
+    tb_screened = 0
+    tb_presumptive = 0
+    tb_sample_collected = 0
+    tb_result_received = 0
+    tb_positive = 0
+    tb_negative = 0
 
     for r in refills:
 
@@ -324,6 +450,25 @@ def dashboard(request):
                 if r.vl_result < 1000:
                     suppressed_count += 1
 
+        # ---------------- TB CASCADE (CURRENT MONTH ONLY) ----------------
+        if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
+            tb_screened += 1
+
+        if r.tb_cascade_status and r.tb_cascade_status.lower() == "presumptive" and r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
+            tb_presumptive += 1
+
+        if r.tb_cascade_status and r.tb_cascade_status.lower() == "sample collected" and r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
+            tb_sample_collected += 1
+
+        if r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
+            tb_result_received += 1
+
+        if r.tb_diagnostic_result and r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
+            if r.tb_diagnostic_result.lower() == "positive":
+                tb_positive += 1
+            if r.tb_diagnostic_result.lower() == "negative":
+                tb_negative += 1
+
     # ---------------- FINAL CALCULATIONS ----------------
     vl_denominator = len(eligible_clients)
 
@@ -364,136 +509,102 @@ def dashboard(request):
         "eac_count": eac_count,
         "post_eac_vl_count": post_eac_vl_count,
         "ahd_count": ahd_count,
+
+        # TB Cascade (CURRENT MONTH ONLY)
+        "tb_screened": tb_screened,
+        "tb_presumptive": tb_presumptive,
+        "tb_sample_collected": tb_sample_collected,
+        "tb_result_received": tb_result_received,
+        "tb_positive": tb_positive,
+        "tb_negative": tb_negative,
     }
 
     return render(request, "dashboard.html", context)
 
+
+
+
 # ================================
-
-
 
 
 @login_required
 def refill_list(request):
+    from django.core.paginator import Paginator
     today = timezone.now().date()
     week_end = today + timedelta(days=7)
 
-    # =================== GET FILTERS ===================
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     search_unique_id = request.GET.get("search_unique_id")
+    export = request.GET.get("export")  # ✅ ADD THIS
 
     facilities = Facility.objects.all()
-    case_managers = (
-        Refill.objects.values_list("case_manager", flat=True)
-        .distinct()
-        .order_by("case_manager")
-    )
+    case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
 
     refills = Refill.objects.all()
 
-    # =================== SAFE DATE PARSING ===================
+    # Safe date parsing
     start_date_obj = None
     end_date_obj = None
-    if start_date:
-        try:
-            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except ValueError:
-            pass
+    try:
+        if start_date:
+            start_date_obj = timezone.datetime.strptime(start_date, "%Y-%m-%d").date()
+        if end_date:
+            end_date_obj = timezone.datetime.strptime(end_date, "%Y-%m-%d").date()
+    except:
+        pass
 
-    if end_date:
-        try:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-    # =================== APPLY FILTERS ===================
-    if facility_id and facility_id != "None":
+    # Filters
+    if facility_id:
         refills = refills.filter(facility_id=facility_id)
-
-    if selected_case_manager and selected_case_manager != "None":
+    if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
-
     if start_date_obj:
         refills = refills.filter(next_appointment__gte=start_date_obj)
-
     if end_date_obj:
         refills = refills.filter(next_appointment__lte=end_date_obj)
-
-    if search_unique_id and search_unique_id.strip():
+    if search_unique_id:
         refills = refills.filter(unique_id__icontains=search_unique_id.strip())
 
-    # =================== ADD DISPLAY FIELDS ===================
-    for refill in refills:
-        # Missed appointment days (temporary attribute, NOT overriding property)
-        refill.days_missed_display = (
-            (today - refill.next_appointment).days
-            if refill.next_appointment and refill.next_appointment < today
-            else 0
-        )
-        refill.missed_appointment = refill.days_missed_display > 0
-
-        # Fallback dates for template
-        refill.display_last_pickup = refill.last_pickup_date
-        refill.display_next_appointment = refill.next_appointment
-
-        # All other metrics now come from model properties
-        # - refill.is_vl_eligible
-        # - refill.is_suppressed
-        # - refill.ahd
-        # - refill.eac
-        # - refill.eac_status
-        # - refill.post_eac_vl_due
-        # - refill.tpt_status
-
-    # =================== GROUP BY PERIOD ===================
-    daily_expected = refills.filter(next_appointment=today)
-    weekly_expected = refills.filter(next_appointment__range=[today, week_end])
-    monthly_expected = refills.filter(
-        next_appointment__year=today.year,
-        next_appointment__month=today.month
-    )
-
-    # =================== PAGINATION ===================
-    daily_page = Paginator(daily_expected.order_by("next_appointment"), 10)
-    weekly_page = Paginator(weekly_expected.order_by("next_appointment"), 10)
-    monthly_page = Paginator(monthly_expected.order_by("next_appointment"), 10)
-
-    # =================== EXCEL EXPORT ===================
-    if "download" in request.GET:
+    # ✅ EXPORT EXCEL (DOES NOT BREAK ANYTHING)
+    if export == "excel":
         return export_refills_to_excel(refills)
 
-    # =================== CONTEXT ===================
+    # Add display fields
+    for r in refills:
+        r.days_missed_display = (today - r.next_appointment).days if r.next_appointment and r.next_appointment < today else 0
+        r.missed_appointment = r.days_missed_display > 0
+
+    # Group by period
+    daily_expected = refills.filter(next_appointment=today)
+    weekly_expected = refills.filter(next_appointment__range=[today, week_end])
+    monthly_expected = refills.filter(next_appointment__year=today.year, next_appointment__month=today.month)
+
+    periods = [
+        {"name": "Daily", "page_obj": Paginator(daily_expected, 10).get_page(request.GET.get("daily_page"))},
+        {"name": "Weekly", "page_obj": Paginator(weekly_expected, 10).get_page(request.GET.get("weekly_page"))},
+        {"name": "Monthly", "page_obj": Paginator(monthly_expected, 10).get_page(request.GET.get("monthly_page"))},
+    ]
+
     context = {
         "facilities": facilities,
         "case_managers": case_managers,
         "selected_facility": facility_id,
         "selected_case_manager": selected_case_manager,
-        "selected_start_date": start_date,
-        "selected_end_date": end_date,
+        "periods": periods,
         "today": today,
-        "seven_days_from_today": week_end,
         "search_unique_id": search_unique_id,
         "query_params": request.GET.urlencode(),
-        "periods": [
-            {"name": "Daily", "page_obj": daily_page.get_page(request.GET.get("daily_page"))},
-            {"name": "Weekly", "page_obj": weekly_page.get_page(request.GET.get("weekly_page"))},
-            {"name": "Monthly", "page_obj": monthly_page.get_page(request.GET.get("monthly_page"))},
-        ],
     }
 
     return render(request, "refill_list.html", context)
 
 
 
-
 def export_refills_to_excel(refills):
-    """
-    Export Refills to Excel using the SAME dynamic logic as refill_list.
-    No property is overwritten. Everything is read-only & model-safe.
-    """
+
     today = timezone.now().date()
 
     wb = openpyxl.Workbook()
@@ -516,53 +627,31 @@ def export_refills_to_excel(refills):
         'TPT Start Date',
         'TPT Completion Date',
         'TPT Status',
-        'Remark',  # NEW Remark Column
+        'TB Cascade Status',
+        'TB Screening Date',
+        'TB Result Received Date',
+        'TB Diagnostic Result',
+        'Remark',
     ]
+
     ws.append(headers)
 
     for refill in refills:
 
-        # ---------------- NEXT APPOINTMENT & MISSED ----------------
         next_appointment = refill.next_appointment
+
         days_missed = (
             (today - next_appointment).days
             if next_appointment and next_appointment < today
             else 0
         )
 
-        # ---------------- VL ELIGIBILITY ----------------
         vl_eligibility = "Eligible" if refill.is_vl_eligible else "Not Eligible"
 
-        # ---------------- AHD ----------------
         ahd_status = "Eligible" if refill.current_art_status == "Restart" else "Not Eligible"
 
-        # ---------------- EAC (MATCHES refill_list) ----------------
-        eac_status = "Not Eligible"
-        post_eac_vl_due = False
-
-        eac_start_date = getattr(refill, "eac_start_date", None)
-        eac_sessions_completed = getattr(refill, "eac_sessions_completed", 0) or 0
-
-        if (
-            refill.vl_result is not None
-            and refill.vl_result >= 1000
-            and refill.vl_sample_collection_date is not None
-            and eac_start_date is None
-        ):
-            if eac_sessions_completed == 0:
-                eac_status = "Eligible for 1st EAC"
-            elif eac_sessions_completed == 1:
-                eac_status = "Eligible for 2nd EAC"
-            elif eac_sessions_completed == 2:
-                eac_status = "Eligible for 3rd EAC"
-            elif eac_sessions_completed >= 3:
-                eac_status = "Post-EAC VL Due"
-                post_eac_vl_due = True
-
-        # ---------------- TPT STATUS (MODEL-DRIVEN) ----------------
         tpt_status = refill.tpt_status
 
-        # ---------------- WRITE ROW ----------------
         ws.append([
             refill.unique_id,
             refill.facility.name if refill.facility else "",
@@ -574,44 +663,47 @@ def export_refills_to_excel(refills):
             days_missed,
             refill.vl_result or "",
             vl_eligibility,
-            eac_status,
+            refill.eac_status,
             ahd_status,
             refill.tpt_start_date.strftime("%Y-%m-%d") if refill.tpt_start_date else "",
             refill.tpt_completion_date.strftime("%Y-%m-%d") if refill.tpt_completion_date else "",
             tpt_status,
-            refill.remark or "",  # NEW Remark
+            refill.tb_cascade_status or "",
+            refill.tb_screening_date.strftime("%Y-%m-%d") if refill.tb_screening_date else "",
+            refill.tb_result_received_date.strftime("%Y-%m-%d") if refill.tb_result_received_date else "",
+            refill.tb_diagnostic_result or "",
+            refill.remark or "",
         ])
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
     response["Content-Disposition"] = f'attachment; filename="Expected_Refills_{today}.xlsx"'
+
     wb.save(response)
+
     return response
+
+
+
+@login_required
+def export_all_refills_excel(request):
+    refills = Refill.objects.all()  # all data
+    return export_refills_to_excel(refills)
+
 
 
 
 # ================= REFILL CREATE =================
 
 
+
+
 @login_required
 def refill_create_or_update(request, pk=None):
-    """
-    Create a new refill or update an existing one.
-    Dynamically calculates:
-    - Next appointment
-    - Days missed
-    - VL eligibility & suppression
-    - Dynamic EAC status
-    - AHD status
-    - TPT status
-    """
     today = timezone.now().date()
-
-    if pk:
-        refill = get_object_or_404(Refill, pk=pk)
-    else:
-        refill = Refill()
+    refill = get_object_or_404(Refill, pk=pk) if pk else Refill()
 
     if request.method == "POST":
         form = RefillForm(request.POST, instance=refill)
@@ -620,74 +712,58 @@ def refill_create_or_update(request, pk=None):
 
             # ------------------ Next Appointment ------------------
             if refill.last_pickup_date and refill.months_of_refill_days:
-                refill.next_appointment = refill.last_pickup_date + timedelta(days=float(refill.months_of_refill_days) * 30)
+                refill.next_appointment = refill.last_pickup_date + timedelta(days=float(refill.months_of_refill_days)*30)
             else:
                 refill.next_appointment = None
 
             # ------------------ Missed Appointment ------------------
-            if refill.next_appointment and refill.next_appointment < today:
-                refill.missed_appointment = True
-                refill.days_missed = (today - refill.next_appointment).days
-            else:
-                refill.missed_appointment = False
-                refill.days_missed = 0
+            refill.missed_appointment = refill.next_appointment < today if refill.next_appointment else False
 
-            # ------------------ VL Eligibility & Suppression ------------------
-            if refill.vl_result is not None:
-                refill.is_vl_eligible = refill.vl_result >= 1000
-                refill.is_suppressed = refill.vl_result < 1000
-            else:
-                refill.is_vl_eligible = False
-                refill.is_suppressed = None
+            # ------------------ TPT expected completion ------------------
+            if refill.tpt_start_date:
+                refill.tpt_expected_completion = refill.tpt_start_date + timedelta(days=180)
 
-            # ------------------ AHD Status ------------------
-            refill.ahd = (refill.current_art_status == "Restart")
-
-            # ------------------ Dynamic EAC Status ------------------
-            refill.eac = False
-            refill.eac_status = "Not Eligible"
-            refill.post_eac_vl_due = False
-
-            if refill.vl_result is not None and refill.vl_result >= 1000:
-                refill.eac = True
-                # Determine base date for EAC (start date or last pickup)
-                base_date = refill.eac_start_date or refill.last_pickup_date or today
-                sessions = getattr(refill, "eac_sessions_completed", 0)
-
-                # Calculate next session dynamically
-                next_session_due = base_date + timedelta(days=(sessions + 1) * 30)
-                if sessions < 3 and today >= next_session_due:
-                    refill.eac_status = f"Due for EAC Session {sessions + 1}"
-                elif sessions >= 3:
-                    refill.post_eac_vl_due = True
-                    refill.eac_status = "Post-EAC VL due"
-                else:
-                    refill.eac_status = "Eligible for EAC"
-
-            # ------------------ TPT Status ------------------
-            if refill.tpt_completion_date and (refill.tpt_completion_date <= today):
-                refill.tpt_status = "Completed"
-            elif refill.tpt_start_date:
-                refill.tpt_status = "Ongoing"
-            else:
-                refill.tpt_status = ""
-
+            # ------------------ Save ------------------
             refill.save()
             return redirect("refill_list")
-
     else:
         form = RefillForm(instance=refill)
 
-    return render(
-        request,
-        "refill_form.html",
-        {
-            "form": form,
-            "today": today
-        }
+    return render(request, "refill_form.html", {"form": form, "today": today})
+
+
+
+
+
+
+
+@login_required
+def refill_add_or_update(request, unique_id=None):
+    if unique_id:
+        refill = get_object_or_404(Refill, unique_id=unique_id)
+    else:
+        refill = Refill()
+
+    if request.method == "POST":
+        form = RefillForm(request.POST, instance=refill)
+        if form.is_valid():
+            form.save()
+            return redirect("refill_list")
+    else:
+        form = RefillForm(instance=refill)
+
+    # ===== Get the most recent TB record for this refill =====
+    latest_tb = (
+        refill.tb_records.order_by("-tb_sample_collection_date", "-tb_result_received_date").first()
+        if hasattr(refill, "tb_records")
+        else None
     )
 
-
+    context = {
+        "form": form,
+        "latest_tb": latest_tb,
+    }
+    return render(request, "refill_form.html", context)
 
 
 
@@ -736,10 +812,13 @@ def refill_create(request, unique_id=None):
 
 
 # ================= REFILL UPDATE =================
+
+
 @login_required
 def refill_update(request, pk):
     """
     Update an existing refill and auto-recalculate next appointment.
+    Supports single-field updates (e.g., only 'remark').
     """
     refill = get_object_or_404(Refill, pk=pk)
     form = RefillForm(request.POST or None, instance=refill)
@@ -747,19 +826,23 @@ def refill_update(request, pk):
     if form.is_valid():
         refill = form.save(commit=False)
 
-        # Auto recalculate next appointment
+        # Auto recalculate next appointment if last pickup or refill duration changed
         if refill.last_pickup_date and refill.months_of_refill_days:
             days = float(refill.months_of_refill_days) * 30
             refill.next_appointment = refill.last_pickup_date + timedelta(days=days)
 
-        refill.save()  # vl_status is read-only
-        return redirect('refill_list')
+        # Auto update TPT expected completion
+        if refill.tpt_start_date:
+            refill.tpt_expected_completion = refill.tpt_start_date + timedelta(days=180)
 
-    return render(request, "refill_form.html", {"form": form})
+        refill.save()  # saves all changes
+        return redirect('refill_list')  # or your dashboard
 
-
+    context = {
+        "form": form
+    }
+    return render(request, "refill_form.html", context)
 # ================= REFILL ADD OR UPDATE =================
-
 
 
 
@@ -790,6 +873,14 @@ def track_refills(request):
             pass
 
     facilities = Facility.objects.all()
+    case_managers_qs = (
+        Refill.objects.exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm.strip()})
+
     refills = Refill.objects.all()
 
     if facility_id:
@@ -801,7 +892,7 @@ def track_refills(request):
     if end_date_obj:
         refills = refills.filter(last_pickup_date__lte=end_date_obj)
 
-    # ✅ SAFE COMPUTED VALUES
+    # ================= SAFE COMPUTED VALUES =================
     for refill in refills:
         refill.days_missed_display = (
             (today - refill.next_appointment).days
@@ -810,12 +901,32 @@ def track_refills(request):
         )
         refill.missed_appointment = refill.days_missed_display > 0
 
+        # VL Status
+        if getattr(refill, "is_vl_eligible", False):
+            refill.vl_status = "Eligible"
+        else:
+            refill.vl_status = "Not Eligible"
+
+        # TB Columns (optional, safe defaults)
+        refill.tb_screening_date_display = getattr(refill, "tb_screening_date", "") or "-"
+        refill.tb_screening_type_display = getattr(refill, "tb_screening_type", "") or "-"
+        refill.tb_status_display = getattr(refill, "tb_status", "") or "-"
+        refill.tb_sample_collection_date_display = getattr(refill, "tb_sample_collection_date", "") or "-"
+        refill.tb_result_received_date_display = getattr(refill, "tb_result_received_date", "") or "-"
+        refill.tb_diagnostic_result_display = getattr(refill, "tb_diagnostic_result", "") or ""
+
+        # Age and AHD
+        refill.age_display = getattr(refill, "age", "") or "-"
+        refill.ahd_display = "Eligible" if getattr(refill, "ahd", False) else "Not Eligible"
+
+    # ================= PERIODS =================
     daily_qs = refills.filter(last_pickup_date=today)
     weekly_qs = refills.filter(last_pickup_date__gte=start_of_week)
     monthly_qs = refills.filter(last_pickup_date__gte=start_of_month)
 
     context = {
         "facilities": facilities,
+        "case_managers": case_managers,
         "selected_facility": facility_id,
         "selected_case_manager": selected_case_manager,
         "today": today,
@@ -825,9 +936,7 @@ def track_refills(request):
             ("Monthly", monthly_qs),
         ],
     }
-
     return render(request, "track_refills.html", context)
-
 
 
 def export_track_refills_to_excel(refills):
@@ -877,6 +986,13 @@ def export_track_refills_to_excel(refills):
 
 
 
+@login_required
+def export_all_track_refills_excel(request):
+    """
+    Export all refills for tracking to Excel.
+    """
+    refills = Refill.objects.all()  # download ALL data
+    return export_track_refills_to_excel(refills)
 
 
 
@@ -886,11 +1002,10 @@ def export_track_refills_to_excel(refills):
 def daily_refill_list(request):
     today = timezone.now().date()
 
-    # ================= FACILITIES =================
     facility_id = request.GET.get("facility")
     facilities = Facility.objects.all()
 
-    # ================= CASE MANAGERS =================
+    # Case managers
     case_managers_qs = (
         Refill.objects.exclude(case_manager__isnull=True)
         .exclude(case_manager__exact="")
@@ -900,29 +1015,45 @@ def daily_refill_list(request):
     case_managers = sorted({cm.strip() for cm in case_managers_qs if cm.strip()})
     selected_case_manager = request.GET.get("case_manager")
 
-    # ================= DAILY REFILLS =================
-    refills = Refill.objects.filter(next_appointment=today).order_by('unique_id')
-
+    # Daily refills
+    refills = Refill.objects.filter(next_appointment=today).order_by("unique_id")
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
-
     if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
 
-    # ================= DYNAMIC VL ELIGIBILITY =================
+    # Prepare dynamic display fields for template
     for refill in refills:
-        if getattr(refill, "vl_sample_collection_date", None) == today:
-            refill.vl_eligible_display = False
+        # VL status
+        if hasattr(refill, "vl_result") and refill.vl_result:
+            refill.vl_status_display = "Suppressed (<1000)" if getattr(refill, "is_suppressed", False) else "Not Suppressed (≥1000)"
         else:
-            refill.vl_eligible_display = getattr(refill, "is_vl_eligible", False)
+            refill.vl_status_display = "No VL"
 
-        # Calculate days missed temporarily (for display only)
+        # EAC Status
+        refill.eac_status_display = getattr(refill, "eac_status", "Not Eligible")
+        refill.post_eac_vl_due_display = getattr(refill, "post_eac_vl_due", False)
+
+        # AHD
+        refill.ahd_display = "Eligible" if getattr(refill, "ahd", False) else "Not Eligible"
+
+        # Age
+        refill.age_display = getattr(refill, "age", "-")
+
+        # TB fields using get_FIELD_display
+        refill.tb_screening_type_display = getattr(refill, "get_tb_screening_type_display", lambda: "-")()
+        refill.tb_status_display = getattr(refill, "get_tb_status_display", lambda: "-")()
+        refill.tb_diagnostic_result_display = getattr(refill, "get_tb_diagnostic_result_display", lambda: "-")()
+        refill.tb_cascade_status_display = getattr(refill, "tb_cascade_status", "-")
+        refill.tb_sample_collection_date_display = getattr(refill, "tb_sample_collection_date", "-")
+        refill.tb_result_received_date_display = getattr(refill, "tb_result_received_date", "-")
+
+        # Days missed for coloring
         if refill.next_appointment and refill.next_appointment < today:
             refill.days_missed_display = (today - refill.next_appointment).days
         else:
             refill.days_missed_display = 0
 
-    # ================= CONTEXT =================
     context = {
         "facilities": facilities,
         "selected_facility": facility_id,
@@ -931,7 +1062,6 @@ def daily_refill_list(request):
         "today": today,
         "refills": refills,
     }
-
     return render(request, "daily_refill_list.html", context)
 
 
@@ -984,25 +1114,29 @@ def missed_refills(request):
             pass
 
     # ================= MISSED REFILLS LOGIC =================
-    missed_list = refills.filter(
-        next_appointment__lt=today
-    ).order_by("next_appointment")
+    missed_list = refills.filter(next_appointment__lt=today).order_by("next_appointment")
 
     # ================= CALCULATED DISPLAY FIELDS =================
     for refill in missed_list:
+        # Days missed
         if refill.next_appointment:
-            days_missed = (today - refill.next_appointment).days
-            refill.days_missed_display = max(days_missed, 0)
-
-            if refill.days_missed_display >= 28:
-                refill.iit_status_display = "IIT"
-            elif refill.days_missed_display > 0:
-                refill.iit_status_display = f"{28 - refill.days_missed_display} days to IIT"
-            else:
-                refill.iit_status_display = "On Track"
+            refill.days_missed_display = max((today - refill.next_appointment).days, 0)
         else:
             refill.days_missed_display = 0
+
+        # IIT Status
+        if refill.days_missed_display >= 28:
+            refill.iit_status_display = "IIT"
+        elif refill.days_missed_display > 0:
+            refill.iit_status_display = f"{28 - refill.days_missed_display} days to IIT"
+        else:
             refill.iit_status_display = "On Track"
+
+        # VL Status
+        if hasattr(refill, "is_vl_eligible"):
+            refill.vl_status_display = "Eligible" if refill.is_vl_eligible else "Not Eligible"
+        else:
+            refill.vl_status_display = getattr(refill, "vl_status", "Not Available")
 
     total_missed = missed_list.count()
 
@@ -1013,17 +1147,10 @@ def missed_refills(request):
         worksheet.title = "Missed Refills"
 
         headers = [
-            "Unique ID",
-            "Case Manager",
-            "Facility",
-            "Last Pickup Date",
-            "Next Appointment",
-            "Days Missed",
-            "IIT Status",
-            "VL Status",
+            "Unique ID", "Case Manager", "Facility", "Last Pickup Date",
+            "Next Appointment", "Days Missed", "IIT Status", "VL Status"
         ]
         worksheet.append(headers)
-
         for col in range(1, len(headers) + 1):
             worksheet.cell(row=1, column=col).font = Font(bold=True)
 
@@ -1036,7 +1163,7 @@ def missed_refills(request):
                 refill.next_appointment.strftime("%Y-%m-%d") if refill.next_appointment else "",
                 refill.days_missed_display,
                 refill.iit_status_display,
-                refill.vl_status,  # MODEL PROPERTY
+                refill.vl_status_display
             ])
 
         response = HttpResponse(
@@ -1060,7 +1187,6 @@ def missed_refills(request):
     )
     case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
 
-    # ================= QUERY PARAMS =================
     query_params = request.GET.copy()
     if "page" in query_params:
         query_params.pop("page")
@@ -1080,10 +1206,6 @@ def missed_refills(request):
     }
 
     return render(request, "missed_refills.html", context)
-
-
-
-
 
 
 
