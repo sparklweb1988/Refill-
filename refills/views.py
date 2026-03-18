@@ -25,6 +25,7 @@ from django.contrib.auth import authenticate, login, logout
 
 
 
+
 # views.py
 
 
@@ -77,19 +78,13 @@ def logout_view(request):
 VALID_REFILL_MONTHS = [0.5, 1, 2, 2.8, 3, 4, 5, 6]
 
 def import_refills_from_excel(file):
-<<<<<<< HEAD
-  MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-
-  if file.size > MAX_FILE_SIZE:
-    raise ValidationError("File size exceeds 50 MB limit")
-=======
 
     MAX_FILE_SIZE =  5 * 1024 * 1024 * 1024  # 5 GB
 
     if file.size > MAX_FILE_SIZE:
         raise ValidationError("File size exceeds 50 MB limit")
 
->>>>>>> 884e755 (tb added)
+
     file.seek(0)
 
     df = pd.read_excel(file)
@@ -298,6 +293,7 @@ def import_refills_from_excel(file):
     return len(validated_rows)
 
 
+
 def upload_excel(request):
     if request.method == 'POST':
         form = UploadExcelForm(request.POST, request.FILES)
@@ -364,7 +360,7 @@ def upload_excel(request):
 
 
 
-# DASHBOARD
+
 @login_required
 def dashboard(request):
     today = timezone.now().date()
@@ -385,10 +381,16 @@ def dashboard(request):
         refills = refills.filter(facility_id=facility_id)
 
     # ---------------- COUNTERS ----------------
-    daily_expected = daily_refills = weekly_expected = monthly_expected = 0
-    monthly_missed_total = iit_total = 0
+    daily_expected = 0
+    daily_refills = 0
+    weekly_expected = 0
+    monthly_expected = 0
+    monthly_missed_total = 0
+    iit_total = 0
 
-    eac_count = post_eac_vl_count = ahd_count = 0
+    eac_count = 0
+    post_eac_vl_count = 0
+    ahd_count = 0
 
     # VL METRICS (CURRENT MONTH ONLY)
     eligible_clients = []
@@ -396,7 +398,7 @@ def dashboard(request):
     vl_result_received = 0
     suppressed_count = 0
 
-    # ---------------- TB CASCADE (CURRENT MONTH ONLY) ----------------
+    # TB CASCADE (CURRENT MONTH ONLY)
     tb_screened = 0
     tb_presumptive = 0
     tb_sample_collected = 0
@@ -419,15 +421,19 @@ def dashboard(request):
         if r.next_appointment and month_start <= r.next_appointment <= month_end:
             monthly_expected += 1
 
+            # Daily expected
             if r.next_appointment == today:
                 daily_expected += 1
-                if r.last_pickup_date == today:
-                    daily_refills += 1
 
+            # Weekly expected
             if today <= r.next_appointment <= week_end:
                 weekly_expected += 1
 
-        # ---------------- MISSED / IIT (CURRENT MONTH ONLY) ----------------
+        # ✅ FIX: TODAY'S REFILLS (INDEPENDENT OF NEXT APPOINTMENT)
+        if r.last_pickup_date and r.last_pickup_date == today:
+            daily_refills += 1
+
+        # ---------------- MISSED / IIT ----------------
         if r.next_appointment and month_start <= r.next_appointment <= month_end:
             days_missed = (today - r.next_appointment).days if r.next_appointment < today else 0
 
@@ -437,35 +443,54 @@ def dashboard(request):
                 if days_missed >= 28:
                     iit_total += 1
 
-        # ---------------- VL METRICS (RESULTS FROM CURRENT MONTH ONLY) ----------------
+        # ---------------- VL METRICS ----------------
         if r.is_vl_eligible:
             eligible_clients.append(r)
 
             if r.vl_sample_collection_date and month_start <= r.vl_sample_collection_date <= month_end:
                 vl_sample_collected += 1
 
-            if r.vl_result is not None and r.vl_sample_collection_date and month_start <= r.vl_sample_collection_date <= month_end:
+            if (
+                r.vl_result is not None
+                and r.vl_sample_collection_date
+                and month_start <= r.vl_sample_collection_date <= month_end
+            ):
                 vl_result_received += 1
 
                 if r.vl_result < 1000:
                     suppressed_count += 1
 
-        # ---------------- TB CASCADE (CURRENT MONTH ONLY) ----------------
+        # ---------------- TB CASCADE ----------------
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
             tb_screened += 1
 
-        if r.tb_cascade_status and r.tb_cascade_status.lower() == "presumptive" and r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
+        if (
+            r.tb_cascade_status
+            and r.tb_cascade_status.lower() == "presumptive"
+            and r.tb_screening_date
+            and month_start <= r.tb_screening_date <= month_end
+        ):
             tb_presumptive += 1
 
-        if r.tb_cascade_status and r.tb_cascade_status.lower() == "sample collected" and r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
+        if (
+            r.tb_cascade_status
+            and r.tb_cascade_status.lower() == "sample collected"
+            and r.tb_screening_date
+            and month_start <= r.tb_screening_date <= month_end
+        ):
             tb_sample_collected += 1
 
         if r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
             tb_result_received += 1
 
-        if r.tb_diagnostic_result and r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
+        if (
+            r.tb_diagnostic_result
+            and r.tb_result_received_date
+            and month_start <= r.tb_result_received_date <= month_end
+        ):
             if r.tb_diagnostic_result.lower() == "positive":
                 tb_positive += 1
+
             if r.tb_diagnostic_result.lower() == "negative":
                 tb_negative += 1
 
@@ -510,7 +535,7 @@ def dashboard(request):
         "post_eac_vl_count": post_eac_vl_count,
         "ahd_count": ahd_count,
 
-        # TB Cascade (CURRENT MONTH ONLY)
+        # TB Cascade
         "tb_screened": tb_screened,
         "tb_presumptive": tb_presumptive,
         "tb_sample_collected": tb_sample_collected,
@@ -520,9 +545,6 @@ def dashboard(request):
     }
 
     return render(request, "dashboard.html", context)
-
-
-
 
 # ================================
 
@@ -602,7 +624,6 @@ def refill_list(request):
     return render(request, "refill_list.html", context)
 
 
-
 def export_refills_to_excel(refills):
 
     today = timezone.now().date()
@@ -632,6 +653,16 @@ def export_refills_to_excel(refills):
         'TB Result Received Date',
         'TB Diagnostic Result',
         'Remark',
+
+        # ✅ NEW TRACKING & TERMINATION FIELDS
+        'Tracking Date 1',
+        'Tracking Date 2',
+        'Tracking Date 3',
+        'Tracked By',
+        'Patient Discontinued',
+        'Discontinued Reason',
+        'Discontinued Date',
+        'Returned Date',
     ]
 
     ws.append(headers)
@@ -647,9 +678,7 @@ def export_refills_to_excel(refills):
         )
 
         vl_eligibility = "Eligible" if refill.is_vl_eligible else "Not Eligible"
-
         ahd_status = "Eligible" if refill.current_art_status == "Restart" else "Not Eligible"
-
         tpt_status = refill.tpt_status
 
         ws.append([
@@ -673,6 +702,20 @@ def export_refills_to_excel(refills):
             refill.tb_result_received_date.strftime("%Y-%m-%d") if refill.tb_result_received_date else "",
             refill.tb_diagnostic_result or "",
             refill.remark or "",
+
+            # ✅ TRACKING DATA
+            refill.tracking_date_1.strftime("%Y-%m-%d") if refill.tracking_date_1 else "",
+            refill.tracking_date_2.strftime("%Y-%m-%d") if refill.tracking_date_2 else "",
+            refill.tracking_date_3.strftime("%Y-%m-%d") if refill.tracking_date_3 else "",
+            refill.tracked_by or "",
+
+            # ✅ TERMINATION
+            dict(refill._meta.get_field('patient_discontinued').choices).get(refill.patient_discontinued, "") if refill.patient_discontinued else "",
+            refill.discontinued_reason or "",
+            refill.discontinued_date.strftime("%Y-%m-%d") if refill.discontinued_date else "",
+
+            # ✅ RETURNED
+            refill.returned_date.strftime("%Y-%m-%d") if refill.returned_date else "",
         ])
 
     response = HttpResponse(
@@ -684,6 +727,7 @@ def export_refills_to_excel(refills):
     wb.save(response)
 
     return response
+
 
 
 
@@ -737,33 +781,47 @@ def refill_create_or_update(request, pk=None):
 
 
 
-@login_required
 def refill_add_or_update(request, unique_id=None):
+    """
+    Handles adding a new refill or updating an existing record.
+    Allows updating tracking, remarks, or discontinuation even if
+    last pickup / refill is empty.
+    """
+    # Try to get existing Refill for this unique_id
     if unique_id:
-        refill = get_object_or_404(Refill, unique_id=unique_id)
+        refill = Refill.objects.filter(unique_id=unique_id).order_by('-last_pickup_date').first()
     else:
-        refill = Refill()
+        refill = None
 
-    if request.method == "POST":
+    if request.method == 'POST':
         form = RefillForm(request.POST, instance=refill)
         if form.is_valid():
-            form.save()
-            return redirect("refill_list")
+            refill_instance = form.save(commit=False)
+
+            # If next_appointment is empty but last_pickup_date exists, auto-calc next appointment
+            if refill_instance.last_pickup_date and not refill_instance.next_appointment:
+                refill_instance.next_appointment = refill_instance.last_pickup_date + timezone.timedelta(
+                    days=(refill_instance.months_of_refill_days or 0) * 30
+                )
+
+            refill_instance.save()
+            messages.success(request, 'Refill record saved successfully.')
+            return redirect('refill_list')
+        else:
+            messages.error(request, 'Please fix the errors below.')
+
     else:
+        # GET request
         form = RefillForm(instance=refill)
 
-    # ===== Get the most recent TB record for this refill =====
-    latest_tb = (
-        refill.tb_records.order_by("-tb_sample_collection_date", "-tb_result_received_date").first()
-        if hasattr(refill, "tb_records")
-        else None
-    )
+    # Latest TB info (for your form)
+    latest_tb = getattr(refill, 'latest_tb', None)
 
     context = {
-        "form": form,
-        "latest_tb": latest_tb,
+        'form': form,
+        'latest_tb': latest_tb,
     }
-    return render(request, "refill_form.html", context)
+    return render(request, 'refill_form.html', context)
 
 
 
@@ -798,7 +856,7 @@ def refill_create(request, unique_id=None):
 
         if form.is_valid():
             form.save()  # vl_status is read-only now
-            return redirect('daily_refill_list')
+            return redirect('refill_list')
 
     else:
         if refill:
@@ -861,11 +919,14 @@ def track_refills(request):
     end_date = request.GET.get("end_date")
 
     start_date_obj = end_date_obj = None
+
+    # ================= DATE PARSING =================
     if start_date:
         try:
             start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
         except ValueError:
             pass
+
     if end_date:
         try:
             end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
@@ -873,6 +934,8 @@ def track_refills(request):
             pass
 
     facilities = Facility.objects.all()
+
+    # ================= CASE MANAGERS =================
     case_managers_qs = (
         Refill.objects.exclude(case_manager__isnull=True)
         .exclude(case_manager__exact="")
@@ -881,19 +944,26 @@ def track_refills(request):
     )
     case_managers = sorted({cm.strip() for cm in case_managers_qs if cm.strip()})
 
-    refills = Refill.objects.all()
+    # ================= FETCH DATA =================
+    refills = list(Refill.objects.select_related("facility").all())
 
+    # ================= FILTERING =================
     if facility_id:
-        refills = refills.filter(facility_id=facility_id)
-    if selected_case_manager:
-        refills = refills.filter(case_manager=selected_case_manager)
-    if start_date_obj:
-        refills = refills.filter(last_pickup_date__gte=start_date_obj)
-    if end_date_obj:
-        refills = refills.filter(last_pickup_date__lte=end_date_obj)
+        refills = [r for r in refills if str(r.facility_id) == facility_id]
 
-    # ================= SAFE COMPUTED VALUES =================
+    if selected_case_manager:
+        refills = [r for r in refills if r.case_manager == selected_case_manager]
+
+    if start_date_obj:
+        refills = [r for r in refills if r.last_pickup_date and r.last_pickup_date >= start_date_obj]
+
+    if end_date_obj:
+        refills = [r for r in refills if r.last_pickup_date and r.last_pickup_date <= end_date_obj]
+
+    # ================= COMPUTED VALUES =================
     for refill in refills:
+
+        # Days missed
         refill.days_missed_display = (
             (today - refill.next_appointment).days
             if refill.next_appointment and refill.next_appointment < today
@@ -902,33 +972,61 @@ def track_refills(request):
         refill.missed_appointment = refill.days_missed_display > 0
 
         # VL Status
-        if getattr(refill, "is_vl_eligible", False):
-            refill.vl_status = "Eligible"
-        else:
-            refill.vl_status = "Not Eligible"
+        refill.vl_status = "Eligible" if getattr(refill, "is_vl_eligible", False) else "Not Eligible"
 
-        # TB Columns (optional, safe defaults)
-        refill.tb_screening_date_display = getattr(refill, "tb_screening_date", "") or "-"
-        refill.tb_screening_type_display = getattr(refill, "tb_screening_type", "") or "-"
-        refill.tb_status_display = getattr(refill, "tb_status", "") or "-"
-        refill.tb_sample_collection_date_display = getattr(refill, "tb_sample_collection_date", "") or "-"
-        refill.tb_result_received_date_display = getattr(refill, "tb_result_received_date", "") or "-"
-        refill.tb_diagnostic_result_display = getattr(refill, "tb_diagnostic_result", "") or ""
+        # ================= ✅ TB DISPLAY FIX =================
+        refill.tb_screening_date_display = refill.tb_screening_date or "-"
 
-        # Age and AHD
-        refill.age_display = getattr(refill, "age", "") or "-"
+        refill.tb_screening_type_display = (
+            refill.get_tb_screening_type_display()
+            if refill.tb_screening_type else "-"
+        )
+
+        refill.tb_status_display = (
+            refill.get_tb_status_display()
+            if refill.tb_status else "-"
+        )
+
+        refill.tb_sample_collection_date_display = refill.tb_sample_collection_date or "-"
+
+        refill.tb_result_received_date_display = refill.tb_result_received_date or "-"
+
+        refill.tb_diagnostic_result_display = (
+            refill.get_tb_diagnostic_result_display()
+            if refill.tb_diagnostic_result else "-"
+        )
+
+        # Age
+        refill.age_display = refill.age or "-"
+
+        # AHD
         refill.ahd_display = "Eligible" if getattr(refill, "ahd", False) else "Not Eligible"
 
-    # ================= PERIODS =================
-    daily_qs = refills.filter(last_pickup_date=today)
-    weekly_qs = refills.filter(last_pickup_date__gte=start_of_week)
-    monthly_qs = refills.filter(last_pickup_date__gte=start_of_month)
+    # ================= PERIOD FILTERS =================
+    daily_list = [r for r in refills if r.last_pickup_date == today]
+
+    weekly_list = [
+        r for r in refills
+        if r.last_pickup_date and r.last_pickup_date >= start_of_week
+    ]
+
+    monthly_list = [
+        r for r in refills
+        if r.last_pickup_date and r.last_pickup_date >= start_of_month
+    ]
+
+    # ================= PAGINATION =================
+    daily_qs = Paginator(daily_list, 50).get_page(request.GET.get("daily_page"))
+    weekly_qs = Paginator(weekly_list, 50).get_page(request.GET.get("weekly_page"))
+    monthly_qs = Paginator(monthly_list, 50).get_page(request.GET.get("monthly_page"))
 
     context = {
         "facilities": facilities,
         "case_managers": case_managers,
         "selected_facility": facility_id,
         "selected_case_manager": selected_case_manager,
+        "selected_start_date": start_date,
+        "selected_end_date": end_date,
         "today": today,
         "periods": [
             ("Daily", daily_qs),
@@ -936,14 +1034,12 @@ def track_refills(request):
             ("Monthly", monthly_qs),
         ],
     }
+
     return render(request, "track_refills.html", context)
 
-
 def export_track_refills_to_excel(refills):
-    """
-    Export refills to Excel, including VL Eligibility Status.
-    """
     today = timezone.now().date()
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Track Refills Data"
@@ -951,15 +1047,39 @@ def export_track_refills_to_excel(refills):
     headers = [
         'Unique ID', 'Facility', 'Last Pickup Date', 'Refill Days', 'Sex',
         'Current Regimen', 'Case Manager', 'Next Appointment',
-        'Days Missed', 'VL Eligibility Status'
+        'Days Missed', 'VL Eligibility Status',
+
+        # ✅ NEW TRACKING & TERMINATION FIELDS
+        'Tracking Date 1',
+        'Tracking Date 2',
+        'Tracking Date 3',
+        'Tracked By',
+        'Patient Discontinued',
+        'Discontinued Reason',
+        'Discontinued Date',
+        'Returned Date',
     ]
     ws.append(headers)
 
     for refill in refills:
         refill.calculate_dates()
-        next_appointment = refill.next_appointment.strftime("%Y-%m-%d") if refill.next_appointment else ""
-        last_pickup = refill.last_pickup_date.strftime("%Y-%m-%d") if refill.last_pickup_date else "Never Picked"
-        days_missed = (today - refill.next_appointment).days if refill.next_appointment and refill.next_appointment < today else 0
+
+        next_appointment = (
+            refill.next_appointment.strftime("%Y-%m-%d")
+            if refill.next_appointment else ""
+        )
+
+        last_pickup = (
+            refill.last_pickup_date.strftime("%Y-%m-%d")
+            if refill.last_pickup_date else "Never Picked"
+        )
+
+        days_missed = (
+            (today - refill.next_appointment).days
+            if refill.next_appointment and refill.next_appointment < today
+            else 0
+        )
+
         vl_status = "Eligible" if refill.is_vl_eligible else "Not Eligible"
 
         row = [
@@ -972,14 +1092,30 @@ def export_track_refills_to_excel(refills):
             refill.case_manager or "",
             next_appointment,
             days_missed,
-            vl_status
+            vl_status,
+
+            # ✅ TRACKING
+            refill.tracking_date_1.strftime("%Y-%m-%d") if refill.tracking_date_1 else "",
+            refill.tracking_date_2.strftime("%Y-%m-%d") if refill.tracking_date_2 else "",
+            refill.tracking_date_3.strftime("%Y-%m-%d") if refill.tracking_date_3 else "",
+            refill.tracked_by or "",
+
+            # ✅ TERMINATION
+            dict(refill._meta.get_field('patient_discontinued').choices).get(refill.patient_discontinued, "") if refill.patient_discontinued else "",
+            refill.discontinued_reason or "",
+            refill.discontinued_date.strftime("%Y-%m-%d") if refill.discontinued_date else "",
+
+            # ✅ RETURNED
+            refill.returned_date.strftime("%Y-%m-%d") if refill.returned_date else "",
         ]
+
         ws.append(row)
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="Track_Refills_{today}.xlsx"'
+
     wb.save(response)
     return response
 

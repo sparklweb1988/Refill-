@@ -61,13 +61,20 @@
             <th>EAC Status</th>
             <th>AHD Eligibility</th>
             <th>TPT Status</th>
-            <!-- <th>TB Screening Date</th>
-            <th>TB Screening Type</th> -->
             <th>TB Status</th>
-            <!-- <th>TB Sample Collected</th>
-            <th>TB Result Received</th>
-            <th>TB Diagnostic Result</th> -->
-            <th>Remark</th>
+
+            <!-- New Columns -->
+            <th>Tracking Attempt 1</th>
+            <th>Tracking Attempt 2</th>
+            <th>Tracking Attempt 3</th>
+            <th>Tracked By</th>
+            <th>Patient Discontinued?</th>
+            <th>Date Discontinued</th>
+            <th>Date Returned</th>
+            <th>Reason for Discontinuation</th>
+            <th>Reason Missed Appointment</th>
+            <!-- <th>Others / Remarks</th> -->
+
             <th>Action</th>
           </tr>
         </thead>
@@ -84,13 +91,13 @@
             <!-- VL Status -->
             <td>
               {% if refill.vl_result %}
-              {% if refill.is_suppressed %}
-              <span class="badge bg-success">Suppressed (&lt;1000)</span>
+                {% if refill.is_suppressed %}
+                  <span class="badge bg-success">Suppressed (&lt;1000)</span>
+                {% else %}
+                  <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+                {% endif %}
               {% else %}
-              <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-              {% endif %}
-              {% else %}
-              <span class="badge bg-secondary">No VL</span>
+                <span class="badge bg-secondary">No VL</span>
               {% endif %}
             </td>
 
@@ -111,27 +118,32 @@
             <!-- TPT -->
             <td>{{ refill.tpt_status }}</td>
 
-            <!-- TB Columns using get_FIELD_display for choice fields -->
-            <!-- <td>{{ refill.tb_screening_date|default:"-" }}</td>
-            <td>{{ refill.get_tb_screening_type_display|default:"-" }}</td> -->
+            <!-- TB Status -->
             <td>{{ refill.get_tb_status_display|default:"-" }}</td>
-            <!-- <td>{{ refill.tb_sample_collection_date|default:"-" }}</td>
-            <td>{{ refill.tb_result_received_date|default:"-" }}</td>
-            <td>{{ refill.get_tb_diagnostic_result_display|default:"-" }}</td> -->
 
-            <td>{{ refill.remark|default:"" }}</td>
+            <!-- New Columns -->
+            <td>{{ refill.tracking_date_1|date:"Y-m-d" }}</td>
+            <td>{{ refill.tracking_date_2|date:"Y-m-d" }}</td>
+            <td>{{ refill.tracking_date_3|date:"Y-m-d" }}</td>
+            <td>{{ refill.tracked_by }}</td>
+            <td>{{ refill.patient_discontinued }}</td>
+            <td>{{ refill.discontinued_date|date:"Y-m-d" }}</td>
+            <td>{{ refill.returned_date|date:"Y-m-d" }}</td>
+            <td>{{ refill.discontinued_reason }}</td>
+            <td>{{ refill.remark }}</td>
+            <!-- <td>{{ refill.others|default:"" }}</td> -->
 
             <td>
               {% if refill.missed_appointment %}
-              <span class="badge bg-danger">Missed</span><br>
+                <span class="badge bg-danger">Missed</span><br>
               {% endif %}
-              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add
+              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Manage
                 Refill</a>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="18" class="text-center">No records</td>
+            <td colspan="28" class="text-center">No records</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -148,39 +160,26 @@
           <p><strong>Facility:</strong> {{ refill.facility.name }}</p>
           <p><strong>Case Manager:</strong> {{ refill.case_manager }}</p>
           <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
+
           <p><strong>VL Status:</strong>
             {% if refill.vl_result %}
-            {% if refill.is_suppressed %}
-            Suppressed (&lt;1000)
-            {% else %}
-            Not Suppressed (≥1000)
-            {% endif %}
-            {% else %}
-            No VL
-            {% endif %}
+              {% if refill.is_suppressed %}Suppressed (&lt;1000){% else %}Not Suppressed (≥1000){% endif %}
+            {% else %}No VL{% endif %}
           </p>
 
-          <p>
-            <strong>TB:</strong><br>
-            <!-- Screening: {{ refill.tb_screening_date|default:"-" }}<br>
-            Type: {{ refill.get_tb_screening_type_display|default:"-" }}<br> -->
-            Status: {{ refill.get_tb_status_display|default:"-" }}<br>
-            <!-- Sample: {{ refill.tb_sample_collection_date|default:"-" }}<br>
-            Result: {{ refill.tb_result_received_date|default:"-" }}<br>
-            Diagnostic: {{ refill.get_tb_diagnostic_result_display|default:"-" }} -->
-          </p>
+          <p><strong>TB Status:</strong> {{ refill.get_tb_status_display|default:"-" }}</p>
 
-          <p><strong>Remark:</strong> {{ refill.remark|default:"" }}</p>
+          <!-- New Columns -->
+          <p><strong>Tracking Attempts:</strong> {{ refill.tracking_date_1|date:"Y-m-d" }}, {{ refill.tracking_date_2|date:"Y-m-d" }}, {{ refill.tracking_date_3|date:"Y-m-d" }}</p>
+          <p><strong>Tracked By:</strong> {{ refill.tracked_by }}</p>
+          <p><strong>Discontinued?:</strong> {{ refill.patient_discontinued }}</p>
+          <p><strong>Date Discontinued:</strong> {{ refill.discontinued_date|date:"Y-m-d" }}</p>
+          <p><strong>Date Returned:</strong> {{ refill.returned_date|date:"Y-m-d" }}</p>
+          <p><strong>Discontinuation Reason:</strong> {{ refill.discontinued_reason }}</p>
+          <p><strong>Reason Missed Appointment:</strong> {{ refill.remark }}</p>
+          <!-- <p><strong>Others:</strong> {{ refill.others|default:"" }}</p> -->
 
-          <p>
-            <span
-              class="badge badge-mobile {% if refill.eac %}bg-warning text-dark{% else %}bg-secondary{% endif %}">EAC</span>
-            <span class="badge badge-mobile {% if refill.ahd %}bg-danger{% else %}bg-secondary{% endif %}">AHD</span>
-            <span class="badge badge-mobile bg-info text-dark">TPT: {{ refill.tpt_status }}</span>
-          </p>
-
-          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Add
-            Refill</a>
+          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Manage Refill</a>
         </div>
       </div>
       {% empty %}
@@ -218,7 +217,6 @@
       <i class="bi bi-download"></i> Download Excel
     </a>
   </div>
-
 
 </div>
 {% endblock %}

@@ -5,221 +5,176 @@
     <div class="row justify-content-center">
         <div class="col-lg-10">
 
+            <!-- Main Card -->
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        {% if form.instance.pk %}
-                        Update Refill Record
-                        {% else %}
-                        Add New Refill
-                        {% endif %}
+                        {% if form.instance.pk %}Update Refill Record{% else %}Add New Refill{% endif %}
                     </h5>
                 </div>
-
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
-                        <div class="row g-3">
 
-                            <!-- Facility -->
-                            <div class="col-md-6">
-                                <label class="form-label">Facility</label>
-                                {{ form.facility }}
+                        <!-- ================= Patient Info ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                Patient Information
                             </div>
-
-                            <!-- Unique ID -->
-                            <div class="col-md-6">
-                                <label class="form-label">Unique ID</label>
-                                {{ form.unique_id }}
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">{{ form.facility.label_tag }} {{ form.facility }}</div>
+                                    <div class="col-md-6">{{ form.unique_id.label_tag }} {{ form.unique_id }}</div>
+                                    <div class="col-md-6">{{ form.age.label_tag }} {{ form.age }}</div>
+                                    <div class="col-md-6">{{ form.sex.label_tag }} {{ form.sex }}</div>
+                                </div>
                             </div>
-
-                            <!-- Age -->
-                            <div class="col-md-6">
-                                <label class="form-label">Age</label>
-                                {{ form.age }}
-                            </div>
-
-                            <!-- Sex -->
-                            <div class="col-md-6">
-                                <label class="form-label">Sex</label>
-                                {{ form.sex }}
-                            </div>
-
-                            <!-- ART Start Date -->
-                            <div class="col-md-6">
-                                <label class="form-label">ART Start Date</label>
-                                {{ form.art_start_date }}
-                            </div>
-
-                            <!-- VL Section -->
-                            <div class="col-md-6">
-                                <label class="form-label">VL Sample Collection Date</label>
-                                {{ form.vl_sample_collection_date }}
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Viral Load Result</label>
-                                {{ form.vl_result }}
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">VL Eligibility Status</label><br>
-                                <span class="badge bg-info text-dark">
-                                    {{ form.instance.vl_status|default:"Not Available" }}
-                                </span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Viral Load Suppression</label><br>
-                                {% if form.instance.is_suppressed == True %}
-                                <span class="badge bg-success">Suppressed (&lt;1000)</span>
-                                {% elif form.instance.is_suppressed == False %}
-                                <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-                                {% else %}
-                                <span class="badge bg-warning text-dark">No VL Result</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- Last Pickup -->
-                            <div class="col-md-6">
-                                <label class="form-label">Add Refill Date</label>
-                                {{ form.last_pickup_date }}
-                            </div>
-
-                            <!-- Refill Duration -->
-                            <div class="col-md-6">
-                                <label class="form-label">Refill Duration (Months)</label>
-                                {{ form.months_of_refill_days }}
-                            </div>
-
-                            <!-- Current Regimen -->
-                            <div class="col-md-6">
-                                <label class="form-label">Current Regimen</label>
-                                {{ form.current_regimen }}
-                            </div>
-
-                            <!-- Case Manager -->
-                            <div class="col-md-6">
-                                <label class="form-label">Case Manager</label>
-                                {{ form.case_manager }}
-                            </div>
-
-                            <!-- EAC Status -->
-                            <div class="col-md-6">
-                                <label class="form-label">EAC Status</label><br>
-                                {% if form.instance.eac %}
-                                <span class="badge bg-warning text-dark">Eligible</span>
-                                {% else %}
-                                <span class="badge bg-secondary">Not Eligible</span>
-                                {% endif %}
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">Post EAC VL Due</label><br>
-                                {% if form.instance.eac_status == "Post-EAC VL Due" %}
-                                <span class="badge bg-danger">Post-EAC VL Due</span>
-                                {% else %}
-                                <span class="badge bg-secondary">No</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- AHD Status -->
-                            <div class="col-md-6">
-                                <label class="form-label">AHD Status</label><br>
-                                {% if form.instance.ahd %}
-                                <span class="badge bg-danger">Eligible</span>
-                                {% else %}
-                                <span class="badge bg-secondary">Not Eligible</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- Remark -->
-                            <div class="col-md-12">
-                                <label class="form-label">Reasons for Missed Appointment</label>
-                                {{ form.remark }}
-                            </div>
-
-                            <!-- Next Appointment -->
-                            <div class="col-md-6">
-                                <label class="form-label">Next Appointment</label>
-                                <input type="text" class="form-control"
-                                    value="{{ form.instance.next_appointment|date:'Y-m-d' }}" readonly>
-                            </div>
-
-                            <!-- TPT Section -->
-                            <div class="col-md-6">
-                                <label class="form-label">TPT Start Date</label>
-                                {{ form.tpt_start_date }}
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TPT Completion Date</label>
-                                {{ form.tpt_completion_date }}
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TPT Status</label><br>
-                                {% if form.instance.tpt_status == "Completed" %}
-                                <span class="badge bg-success">Completed</span>
-                                {% elif form.instance.tpt_status == "Ongoing" %}
-                                <span class="badge bg-warning text-dark">Ongoing</span>
-                                {% elif form.instance.tpt_status == "Overdue" %}
-                                <span class="badge bg-danger">Overdue</span>
-                                {% else %}
-                                <span class="badge bg-secondary">Not Started</span>
-                                {% endif %}
-                            </div>
-
-                            <!-- ================= TB Section ================= -->
-                            <div class="col-md-6">
-                                <label class="form-label">TB Cascade Status</label><br>
-                                <span class="badge bg-info">{{ latest_tb.tb_cascade_status|default:"N/A" }}</span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TB Screening Type</label><br>
-                                <span class="badge bg-info">{{ latest_tb.tb_screening_type|default:"N/A" }}</span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TB Status</label><br>
-                                {% if latest_tb %}
-                                {% if latest_tb.tb_status == "Positive" %}
-                                <span class="badge bg-danger">Positive</span>
-                                {% elif latest_tb.tb_status == "Negative" %}
-                                <span class="badge bg-success">Negative</span>
-                                {% else %}
-                                <span class="badge bg-secondary">{{ latest_tb.tb_status }}</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="badge bg-secondary">No Record</span>
-                                {% endif %}
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TB Sample Collection Date</label><br>
-                                <span>{{ latest_tb.tb_sample_collection_date|date:"Y-m-d"|default:"-" }}</span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TB Result Received Date</label><br>
-                                <span>{{ latest_tb.tb_result_received_date|date:"Y-m-d"|default:"-" }}</span>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">TB Diagnostic Result</label><br>
-                                <span class="badge bg-info">{{ latest_tb.tb_diagnostic_result|default:"-" }}</span>
-                            </div>
-
                         </div>
 
+                        <!-- ================= ART & VL ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">ART & Viral Load</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">{{ form.art_start_date.label_tag }} {{ form.art_start_date }}</div>
+                                    <div class="col-md-6">{{ form.vl_sample_collection_date.label_tag }} {{ form.vl_sample_collection_date }}</div>
+                                    <div class="col-md-6">{{ form.vl_result.label_tag }} {{ form.vl_result }}</div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">VL Eligibility Status</label><br>
+                                        <span class="badge bg-info text-dark">
+                                            {{ form.instance.vl_status|default:"Not Available" }}
+                                        </span>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Viral Load Suppression</label><br>
+                                        {% if form.instance.is_suppressed == True %}
+                                            <span class="badge bg-success">Suppressed (&lt;1000)</span>
+                                        {% elif form.instance.is_suppressed == False %}
+                                            <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">No VL Result</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= Refill Info ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">Refill & Case Info</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">{{ form.last_pickup_date.label_tag }} {{ form.last_pickup_date }}</div>
+                                    <div class="col-md-6">{{ form.months_of_refill_days.label_tag }} {{ form.months_of_refill_days }}</div>
+                                    <div class="col-md-6">{{ form.current_regimen.label_tag }} {{ form.current_regimen }}</div>
+                                    <div class="col-md-6">{{ form.case_manager.label_tag }} {{ form.case_manager }}</div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Next Appointment</label>
+                                        <input type="text" class="form-control"
+                                               value="{{ form.instance.next_appointment|date:'Y-m-d' }}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= TPT Info ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">TPT</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">{{ form.tpt_start_date.label_tag }} {{ form.tpt_start_date }}</div>
+                                    <div class="col-md-6">{{ form.tpt_completion_date.label_tag }} {{ form.tpt_completion_date }}</div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">TPT Status</label><br>
+                                        {% if form.instance.tpt_status == "Completed" %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif form.instance.tpt_status == "Ongoing" %}
+                                            <span class="badge bg-warning text-dark">Ongoing</span>
+                                        {% elif form.instance.tpt_status == "Overdue" %}
+                                            <span class="badge bg-danger">Overdue</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not Started</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= TB Section ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">TB Screening & Cascade</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">{{ form.tb_screening_date.label_tag }} {{ form.tb_screening_date }}</div>
+                                    <div class="col-md-6">{{ form.tb_screening_type.label_tag }} {{ form.tb_screening_type }}</div>
+                                    <div class="col-md-6">{{ form.tb_status.label_tag }} {{ form.tb_status }}</div>
+                                    <div class="col-md-6">{{ form.tb_sample_collection_date.label_tag }} {{ form.tb_sample_collection_date }}</div>
+                                    <div class="col-md-6">{{ form.tb_result_received_date.label_tag }} {{ form.tb_result_received_date }}</div>
+                                    <div class="col-md-6">{{ form.tb_diagnostic_result.label_tag }} {{ form.tb_diagnostic_result }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= Client Tracking / Termination ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">Client Tracking & Termination</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">{{ form.missed_reason.label_tag }} {{ form.missed_reason }}</div>
+                                    <div class="col-md-6">{{ form.remark.label_tag }} {{ form.remark }}</div>
+                                    <div class="col-md-4">{{ form.tracking_date_1.label_tag }} {{ form.tracking_date_1 }}</div>
+                                    <div class="col-md-4">{{ form.tracking_date_2.label_tag }} {{ form.tracking_date_2 }}</div>
+                                    <div class="col-md-4">{{ form.tracking_date_3.label_tag }} {{ form.tracking_date_3 }}</div>
+                                    <div class="col-md-6">{{ form.tracked_by.label_tag }} {{ form.tracked_by }}</div>
+                                    <div class="col-md-6">{{ form.patient_discontinued.label_tag }} {{ form.patient_discontinued }}</div>
+
+                                    <div class="col-md-6" id="discontinued_reason_div"
+                                         style="display: {% if form.instance.patient_discontinued == 'Y' %}block{% else %}none{% endif %};">
+                                        {{ form.discontinued_reason.label_tag }} {{ form.discontinued_reason }}
+                                    </div>
+
+                                    <div class="col-md-6" id="discontinued_date_div"
+                                         style="display: {% if form.instance.patient_discontinued == 'Y' %}block{% else %}none{% endif %};">
+                                        {{ form.discontinued_date.label_tag }} {{ form.discontinued_date }}
+                                    </div>
+
+                                    <div class="col-md-6" id="returned_date_div"
+                                         style="display: {% if form.instance.patient_discontinued == 'N' %}block{% else %}none{% endif %};">
+                                        {{ form.returned_date.label_tag }} {{ form.returned_date }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- JS to toggle Yes/No -->
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                const select = document.getElementById('{{ form.patient_discontinued.id_for_label }}');
+                                const yesDivs = ['discontinued_reason_div', 'discontinued_date_div'];
+                                const noDiv = 'returned_date_div';
+
+                                select.addEventListener('change', function () {
+                                    if (this.value === 'Y') {
+                                        yesDivs.forEach(id => document.getElementById(id).style.display = 'block');
+                                        document.getElementById(noDiv).style.display = 'none';
+                                    } else if (this.value === 'N') {
+                                        yesDivs.forEach(id => document.getElementById(id).style.display = 'none');
+                                        document.getElementById(noDiv).style.display = 'block';
+                                    } else {
+                                        yesDivs.forEach(id => document.getElementById(id).style.display = 'none');
+                                        document.getElementById(noDiv).style.display = 'none';
+                                    }
+                                });
+                            });
+                        </script>
+
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'refill_list' %}" class="btn btn-secondary">
-                                Back
-                            </a>
-                            <button type="submit" class="btn btn-success">
-                                Save Record
-                            </button>
+                            <a href="{% url 'refill_list' %}" class="btn btn-secondary">Back</a>
+                            <button type="submit" class="btn btn-success">Save Record</button>
                         </div>
 
                     </form>

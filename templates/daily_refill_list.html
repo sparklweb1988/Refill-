@@ -6,6 +6,13 @@
     background-color: #f8d7da !important;
   }
 
+  /* missed appointments / overdue */
+  .discontinued {
+    background-color: #fff3cd !important;
+  }
+
+  /* discontinued patients */
+
   .cards-container {
     display: flex;
     flex-direction: column;
@@ -14,11 +21,17 @@
 
   .refill-card {
     padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   }
 
   .refill-card small {
     display: block;
     margin-bottom: 0.5rem;
+  }
+
+  .badge-status {
+    font-size: 0.8rem;
   }
 
   @media (max-width: 767px) {
@@ -63,7 +76,11 @@
 <!-- ================= MOBILE VIEW: CARDS ================= -->
 <div class="d-block d-md-none cards-container">
   {% for refill in refills %}
-  <div class="card {% if refill.days_missed_display > 0 %} bg-danger {% else %} bg-light {% endif %} refill-card">
+  <div class="card
+      {% if refill.patient_discontinued %} discontinued
+      {% elif refill.days_missed_display > 0 %} overdue
+      {% else %} bg-light
+      {% endif %} refill-card">
     <div class="card-body">
       <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
       <small>Age: {{ refill.age_display }}</small>
@@ -74,37 +91,35 @@
       <small>Regimen: {{ refill.current_regimen }}</small>
       <small>Case Manager: {{ refill.case_manager }}</small>
 
-      <!-- TB Columns -->
-      <!-- <small>TB Cascade: {{ refill.tb_cascade_status_display }}</small>
-      <small>TB Screening: {{ refill.tb_screening_type_display }}</small> -->
+      <!-- TB / VL / EAC / AHD / TPT -->
       <small>TB Status: {{ refill.tb_status_display }}</small>
-      <!-- <small>TB Sample Collection: {{ refill.tb_sample_collection_date_display }}</small>
-      <small>TB Result Received: {{ refill.tb_result_received_date_display }}</small>
-      <small>TB Diagnostic: {{ refill.tb_diagnostic_result_display }}</small> -->
-
-      <!-- VL -->
       <small>VL Status: {{ refill.vl_status_display }}</small>
-
-      <!-- EAC -->
-      <small>EAC Status:
-        {% if refill.eac %}
-        {% if refill.post_eac_vl_due_display %}Post-EAC VL Due{% else %}{{ refill.eac_status_display }}{% endif %}
-        {% else %}
-        Not Eligible
-        {% endif %}
-      </small>
-
-      <!-- AHD -->
+      <small>EAC Status: {% if refill.eac %}{% if refill.post_eac_vl_due_display %}Post-EAC VL
+        Due{% else %}{{ refill.eac_status_display }}{% endif %}{% else %}Not Eligible{% endif %}</small>
       <small>AHD Status: {{ refill.ahd_display }}</small>
-
-      <!-- TPT -->
       <small>TPT Status: {{ refill.tpt_status }}</small>
 
-      {% if refill.missed_appointment %}
+      <!-- ================= NEW FIELDS ================= -->
+      <!-- <small>Tracking Attempt 1: {{ refill.tracking_date_1|date:"Y-m-d"|default:"-" }}</small>
+      <small>Tracking Attempt 2: {{ refill.tracking_date_2|date:"Y-m-d"|default:"-" }}</small>
+      <small>Tracking Attempt 3: {{ refill.tracking_date_3|date:"Y-m-d"|default:"-" }}</small>
+      <small>Tracked By: {{ refill.tracked_by|default:"-" }}</small>
+      <small>Patient Discontinued?: {{ refill.patient_discontinued|yesno:"Yes,No" }}</small>
+      <small>Date Discontinued: {{ refill.discontinued_date|date:"Y-m-d"|default:"-" }}</small>
+      <small>Date Returned: {{ refill.returned_date|date:"Y-m-d"|default:"-" }}</small>
+      <small>Reason Discontinued: {{ refill.discontinued_reason|default:"-" }}</small>
+      <small>Reason Missed Appointment: {{ refill.remark|default:"-" }}</small>
+      <small>Others / Remarks: {{ refill.others|default:"-" }}</small> -->
+
+      <!-- BADGES -->
+      {% if refill.days_missed_display > 0 %}
       <span class="badge bg-danger">Missed Appointment</span>
       {% endif %}
+      {% if refill.patient_discontinued %}
+      <span class="badge bg-warning text-dark">Discontinued</span>
+      {% endif %}
 
-      <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm mt-2">Add
+      <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm mt-2">Manage
         Refill</a>
     </div>
   </div>
@@ -133,22 +148,31 @@
           <th class="text-danger">Next Appointment</th>
           <th>Regimen</th>
           <th>Case Manager</th>
-          <!-- <th>TB Cascade</th>
-          <th>TB Screening</th> -->
           <th>TB Status</th>
-          <!-- <th>TB Sample Collection</th>
-          <th>TB Result Received</th>
-          <th>TB Diagnostic</th> -->
           <th>VL Status</th>
           <th>EAC Status</th>
           <th>AHD Eligibility</th>
           <th>TPT Status</th>
+
+          <!-- NEW COLUMNS -->
+          <!-- <th>Tracking 1</th>
+          <th>Tracking 2</th>
+          <th>Tracking 3</th>
+          <th>Tracked By</th>
+          <th>Discontinued?</th>
+          <th>Date Discontinued</th>
+          <th>Date Returned</th>
+          <th>Reason Discontinued</th>
+          <th>Reason Missed Appointment</th>
+          <th>Others / Remarks</th> -->
+
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for refill in refills %}
-        <tr {% if refill.days_missed_display > 0 %}class="overdue" {% endif %}>
+        <tr {% if refill.patient_discontinued %} class="discontinued" {% elif refill.days_missed_display > 0 %}
+          class="overdue" {% endif %}>
           <td>{{ refill.unique_id }}</td>
           <td>{{ refill.age_display }}</td>
           <td>{{ refill.sex }}</td>
@@ -158,33 +182,39 @@
           <td>{{ refill.next_appointment }}</td>
           <td>{{ refill.current_regimen }}</td>
           <td>{{ refill.case_manager }}</td>
-          <!-- <td>{{ refill.tb_cascade_status_display }}</td>
-          <td>{{ refill.tb_screening_type_display }}</td> -->
           <td>{{ refill.tb_status_display }}</td>
-          <!-- <td>{{ refill.tb_sample_collection_date_display }}</td>
-          <td>{{ refill.tb_result_received_date_display }}</td>
-          <td>{{ refill.tb_diagnostic_result_display }}</td> -->
           <td>{{ refill.vl_status_display }}</td>
-          <td>
-            {% if refill.eac %}
-            {% if refill.post_eac_vl_due_display %}Post-EAC VL Due{% else %}{{ refill.eac_status_display }}{% endif %}
-            {% else %}
-            Not Eligible
-            {% endif %}
-          </td>
+          <td>{% if refill.eac %}{% if refill.post_eac_vl_due_display %}Post-EAC VL
+            Due{% else %}{{ refill.eac_status_display }}{% endif %}{% else %}Not Eligible{% endif %}</td>
           <td>{{ refill.ahd_display }}</td>
           <td>{{ refill.tpt_status }}</td>
+
+          <!-- NEW FIELDS -->
+          <!-- <td>{{ refill.tracking_date_1|date:"Y-m-d"|default:"-" }}</td>
+          <td>{{ refill.tracking_date_2|date:"Y-m-d"|default:"-" }}</td>
+          <td>{{ refill.tracking_date_3|date:"Y-m-d"|default:"-" }}</td>
+          <td>{{ refill.tracked_by|default:"-" }}</td>
+          <td>{{ refill.patient_discontinued|yesno:"Yes,No" }}</td>
+          <td>{{ refill.discontinued_date|date:"Y-m-d"|default:"-" }}</td>
+          <td>{{ refill.returned_date|date:"Y-m-d"|default:"-" }}</td>
+          <td>{{ refill.discontinued_reason|default:"-" }}</td>
+          <td>{{ refill.remark|default:"-" }}</td>
+          <td>{{ refill.others|default:"-" }}</td> -->
+
           <td>
-            {% if refill.missed_appointment %}
+            {% if refill.days_missed_display > 0 %}
             <span class="badge bg-danger">Missed Appointment</span><br>
             {% endif %}
-            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Add
+            {% if refill.patient_discontinued %}
+            <span class="badge bg-warning text-dark">Discontinued</span><br>
+            {% endif %}
+            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Manage
               Refill</a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="20" class="text-center">No daily refills today</td>
+          <td colspan="25" class="text-center">No daily refills today</td>
         </tr>
         {% endfor %}
       </tbody>

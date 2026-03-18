@@ -253,6 +253,42 @@ class Refill(models.Model):
         elif 0 < self.days_missed < 28:
             return f"{28 - self.days_missed} days to IIT"
         return "On Track"
+    
+        
+        
+        # ================= Client Tracking =================
+    tracking_date_1 = models.DateField(null=True, blank=True)
+    tracking_date_2 = models.DateField(null=True, blank=True)
+    tracking_date_3 = models.DateField(null=True, blank=True)
+
+    tracked_by = models.CharField(max_length=100, null=True, blank=True)
+
+    # ================= Discontinuation =================
+    YES_NO_CHOICES = [('Y','Yes'),('N','No')]
+
+    patient_discontinued = models.CharField(
+        max_length=1,
+        choices=YES_NO_CHOICES,
+        null=True,
+        blank=True
+    )
+
+    DISCONTINUED_REASONS = [
+        ('Transferred Out','Transferred Out'),
+        ('Death','Death'),
+    ]
+
+    discontinued_reason = models.CharField(
+        max_length=50,
+        choices=DISCONTINUED_REASONS,
+        null=True,
+        blank=True
+    )
+
+    discontinued_date = models.DateField(null=True, blank=True)
+
+    # ================= Returned =================
+    returned_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.unique_id} - {self.facility.name}"
