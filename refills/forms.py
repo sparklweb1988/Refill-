@@ -4,9 +4,16 @@ from django.core.exceptions import ValidationError
 
 MISSED_REASONS = [
     ('', 'Select Reason'),
-    ('Travelled', 'Travelled'),
+    ('Was Sick', 'Was Sick'),
+    ('No Transport Fare', 'No Transport Fare'),
     ('Forgot', 'Forgot'),
-    ('Health Issues', 'Health Issues'),
+    ('Felt Better', 'Felt Better'),
+    ('Not Permitted to leave work', 'Not Permitted to leave work'),
+    ('Last appointment Cancelled', 'Last appointment Cancelled'),
+    ('Still had Drugs', 'Still had Drugs'),
+    ('Taking Herbal Treatment', 'Taking Herbal Treatment'),
+    ('Intense Followup', 'Intense Followup'),
+   
 ]
 
 class RefillForm(forms.ModelForm):
