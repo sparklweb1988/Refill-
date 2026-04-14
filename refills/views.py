@@ -61,7 +61,17 @@ def logout_view(request):
 
 
 
+def get_quarter_range(date):
+    year = date.year
 
+    if date.month in [1, 2, 3]:
+        return date.replace(month=1, day=1), date.replace(month=3, day=31)
+    elif date.month in [4, 5, 6]:
+        return date.replace(month=4, day=1), date.replace(month=6, day=30)
+    elif date.month in [7, 8, 9]:
+        return date.replace(month=7, day=1), date.replace(month=9, day=30)
+    else:
+        return date.replace(month=10, day=1), date.replace(month=12, day=31)
 
 
 
@@ -361,6 +371,8 @@ def upload_excel(request):
 
 
 
+
+
 @login_required
 def dashboard(request):
     today = timezone.now().date()
@@ -369,6 +381,20 @@ def dashboard(request):
     week_end = today + timedelta(days=7)
     month_start = today.replace(day=1)
     month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+    # ================= QUARTER LOGIC =================
+    if today.month in [1, 2, 3]:
+        quarter_start = date(today.year, 1, 1)
+        quarter_end = date(today.year, 3, 31)
+    elif today.month in [4, 5, 6]:
+        quarter_start = date(today.year, 4, 1)
+        quarter_end = date(today.year, 6, 30)
+    elif today.month in [7, 8, 9]:
+        quarter_start = date(today.year, 7, 1)
+        quarter_end = date(today.year, 9, 30)
+    else:
+        quarter_start = date(today.year, 10, 1)
+        quarter_end = date(today.year, 12, 31)
 
     facility_id = request.GET.get("facility")
     facilities = Facility.objects.all()
@@ -380,7 +406,7 @@ def dashboard(request):
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
 
-    # ---------------- COUNTERS ----------------
+    # ================= COUNTERS =================
     daily_expected = 0
     daily_refills = 0
     weekly_expected = 0
@@ -392,13 +418,13 @@ def dashboard(request):
     post_eac_vl_count = 0
     ahd_count = 0
 
-    # VL METRICS (CURRENT MONTH ONLY)
+    # ================= VL COUNTERS =================
     eligible_clients = []
     vl_sample_collected = 0
     vl_result_received = 0
     suppressed_count = 0
 
-    # TB CASCADE (CURRENT MONTH ONLY)
+    # ================= TB COUNTERS =================
     tb_screened = 0
     tb_presumptive = 0
     tb_sample_collected = 0
@@ -406,6 +432,7 @@ def dashboard(request):
     tb_positive = 0
     tb_negative = 0
 
+    # ================= MAIN LOOP =================
     for r in refills:
 
         # ---------------- AHD / EAC ----------------
@@ -417,19 +444,17 @@ def dashboard(request):
             if r.post_eac_vl_due:
                 post_eac_vl_count += 1
 
-        # ---------------- EXPECTED (CURRENT MONTH ONLY) ----------------
+        # ---------------- EXPECTED ----------------
         if r.next_appointment and month_start <= r.next_appointment <= month_end:
             monthly_expected += 1
 
-            # Daily expected
             if r.next_appointment == today:
                 daily_expected += 1
 
-            # Weekly expected
             if today <= r.next_appointment <= week_end:
                 weekly_expected += 1
 
-        # ✅ FIX: TODAY'S REFILLS (INDEPENDENT OF NEXT APPOINTMENT)
+        # ---------------- DAILY REFILLS ----------------
         if r.last_pickup_date and r.last_pickup_date == today:
             daily_refills += 1
 
@@ -443,22 +468,25 @@ def dashboard(request):
                 if days_missed >= 28:
                     iit_total += 1
 
-        # ---------------- VL METRICS ----------------
-        if r.is_vl_eligible:
-            eligible_clients.append(r)
+        # ================= VL LOGIC =================
 
-            if r.vl_sample_collection_date and month_start <= r.vl_sample_collection_date <= month_end:
-                vl_sample_collected += 1
+        # TX_CURR denominator (ALL active patients)
+        eligible_clients.append(r)
 
-            if (
-                r.vl_result is not None
-                and r.vl_sample_collection_date
-                and month_start <= r.vl_sample_collection_date <= month_end
-            ):
-                vl_result_received += 1
+        # VL sample collected (QUARTER)
+        if r.vl_sample_collection_date and quarter_start <= r.vl_sample_collection_date <= quarter_end:
+            vl_sample_collected += 1
 
-                if r.vl_result < 1000:
-                    suppressed_count += 1
+        # VL results received (QUARTER)
+        if (
+            r.vl_result is not None
+            and r.vl_sample_collection_date
+            and quarter_start <= r.vl_sample_collection_date <= quarter_end
+        ):
+            vl_result_received += 1
+
+            if r.vl_result < 1000:
+                suppressed_count += 1
 
         # ---------------- TB CASCADE ----------------
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
@@ -494,27 +522,25 @@ def dashboard(request):
             if r.tb_diagnostic_result.lower() == "negative":
                 tb_negative += 1
 
-    # ---------------- FINAL CALCULATIONS ----------------
+    # ================= FINAL CALCULATIONS =================
     vl_denominator = len(eligible_clients)
 
-    vl_coverage = (
-        round((vl_sample_collected / vl_denominator) * 100, 1)
-        if vl_denominator else 0
-    )
+    vl_coverage = round((vl_sample_collected / vl_denominator) * 100, 1) if vl_denominator else 0
 
     vl_suppression_rate = (
         round((suppressed_count / vl_result_received) * 100, 1)
         if vl_result_received else 0
     )
 
-    vl_coverage_gap = vl_denominator - vl_sample_collected
+    vl_coverage_gap = max(0, vl_denominator - vl_sample_collected)
 
+    # ================= CONTEXT =================
     context = {
         "facilities": facilities,
         "selected_facility": facility_id,
         "today": today,
 
-        # Expected / IIT
+        # EXPECTED / IIT
         "daily_expected": daily_expected,
         "daily_refills": daily_refills,
         "weekly_expected": weekly_expected,
@@ -522,7 +548,7 @@ def dashboard(request):
         "monthly_missed_total": monthly_missed_total,
         "iit_total": iit_total,
 
-        # VL Metrics
+        # VL
         "vl_denominator": vl_denominator,
         "vl_sample_collected": vl_sample_collected,
         "vl_result_received": vl_result_received,
@@ -535,7 +561,7 @@ def dashboard(request):
         "post_eac_vl_count": post_eac_vl_count,
         "ahd_count": ahd_count,
 
-        # TB Cascade
+        # TB
         "tb_screened": tb_screened,
         "tb_presumptive": tb_presumptive,
         "tb_sample_collected": tb_sample_collected,
@@ -545,8 +571,10 @@ def dashboard(request):
     }
 
     return render(request, "dashboard.html", context)
-
 # ================================
+
+
+
 
 
 @login_required

@@ -31,6 +31,8 @@ class Facility(models.Model):
 
 
 
+
+
 class Refill(models.Model):
 
     SEX_CHOICES = (
@@ -148,43 +150,28 @@ class Refill(models.Model):
     # ================= VL ELIGIBILITY =================
     @property
     def is_vl_eligible(self):
-        """
-        Determines VL eligibility based on ART duration, age, and last sample collection:
-        1. Must be on ART > 6 months.
-        2. Age > 15: annual sample at same month as previous collection.
-        3. Age < 15: sample every 6 months.
-        """
         today = timezone.now().date()
 
-    # ART must have started
         if not self.art_start_date:
             return False
 
-    # ART must be > 6 months
         if self.art_start_date + relativedelta(months=6) > today:
             return False
 
-    # No sample collected ever → eligible
         if not self.vl_sample_collection_date:
-         return True
+            return True
 
-    # Calculate next due date based on age
+        # FIXED INDENTATION HERE ✅
         if self.age is None:
-        # fallback: use adult rule
-         next_due_date = self.vl_sample_collection_date + relativedelta(months=12)
+            next_due_date = self.vl_sample_collection_date + relativedelta(months=12)
         elif self.age > 15:
-        # adult: annual sample at same month as last
             next_due_date = self.vl_sample_collection_date + relativedelta(years=1)
         else:
-        # child: sample every 6 months
             next_due_date = self.vl_sample_collection_date + relativedelta(months=6)
 
-    # Eligible if today is past the next due date
         return today >= next_due_date
-    
-    
+
     # ================= SUPPRESSION =================
-    
     @property
     def is_suppressed(self):
         if self.vl_result is None:
@@ -220,10 +207,6 @@ class Refill(models.Model):
 
     @property
     def post_eac_vl_due(self):
-        """
-        Returns True if patient has completed 3 EAC sessions and
-        VL result is still high (>=1000), meaning Post-EAC VL is due.
-        """
         return self.eac_sessions_completed >= 3 and self.vl_result is not None and self.vl_result >= 1000
 
     # ================= TPT =================
@@ -253,10 +236,8 @@ class Refill(models.Model):
         elif 0 < self.days_missed < 28:
             return f"{28 - self.days_missed} days to IIT"
         return "On Track"
-    
-        
-        
-        # ================= Client Tracking =================
+
+    # ================= Client Tracking =================
     tracking_date_1 = models.DateField(null=True, blank=True)
     tracking_date_2 = models.DateField(null=True, blank=True)
     tracking_date_3 = models.DateField(null=True, blank=True)
