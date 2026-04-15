@@ -371,8 +371,6 @@ def upload_excel(request):
 
 
 
-
-
 @login_required
 def dashboard(request):
     today = timezone.now().date()
@@ -427,6 +425,10 @@ def dashboard(request):
     vl_result_received = 0
     suppressed_count = 0
 
+    # ================= QUARTERLY VL COUNTERS =================
+    quarter_vl_collected = 0
+    quarter_vl_result_received = 0
+
     # ================= TB COUNTERS =================
     tb_screened = 0
     tb_presumptive = 0
@@ -471,9 +473,7 @@ def dashboard(request):
                 if days_missed >= 28:
                     iit_total += 1
 
-        # ================= VL LOGIC (FY BASED) =================
-
-        # TX_CURR denominator
+        # ================= VL ELIGIBLE DENOMINATOR =================
         if (
             r.current_art_status in ["Active", "Active Restart", "Restart"]
             and r.art_start_date
@@ -481,23 +481,27 @@ def dashboard(request):
         ):
             eligible_clients.append(r)
 
-        # ================= VL SAMPLE COLLECTED (FY) =================
-        if (
-            r.vl_sample_collection_date
-            and r.vl_sample_collection_date >= FY_START
-        ):
+        # ================= VL SAMPLE COLLECTED =================
+        if r.vl_sample_collection_date:
             vl_sample_collected += 1
 
-        # ================= VL RESULTS RECEIVED (FY) =================
+            # QUARTER VL COLLECTED
+            if quarter_start <= r.vl_sample_collection_date <= quarter_end:
+                quarter_vl_collected += 1
+
+        # ================= VL RESULT RECEIVED =================
         if (
             r.vl_result is not None
             and r.vl_sample_collection_date
-            and r.vl_sample_collection_date >= FY_START
         ):
             vl_result_received += 1
 
             if r.vl_result < 1000:
                 suppressed_count += 1
+
+            # QUARTER VL RESULT RECEIVED
+            if quarter_start <= r.vl_sample_collection_date <= quarter_end:
+                quarter_vl_result_received += 1
 
         # ---------------- TB CASCADE ----------------
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
@@ -567,6 +571,10 @@ def dashboard(request):
         "vl_coverage_gap": vl_coverage_gap,
         "vl_suppression_rate": vl_suppression_rate,
 
+        # QUARTERLY VL
+        "quarter_vl_collected": quarter_vl_collected,
+        "quarter_vl_result_received": quarter_vl_result_received,
+
         # EAC / AHD
         "eac_count": eac_count,
         "post_eac_vl_count": post_eac_vl_count,
@@ -582,7 +590,6 @@ def dashboard(request):
     }
 
     return render(request, "dashboard.html", context)
-
 
 
 # ================================
