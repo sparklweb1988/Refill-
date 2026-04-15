@@ -589,12 +589,12 @@ def dashboard(request):
 
 
 
-
 @login_required
 def refill_list(request):
-    from django.core.paginator import Paginator
+   
 
     today = timezone.now().date()
+    FY_START = date(2025, 10, 1)   # ✅ FIX ADDED HERE
     week_end = today + timedelta(days=7)
 
     facility_id = request.GET.get("facility")
@@ -627,6 +627,7 @@ def refill_list(request):
 
     # ================= FY VL STATUS =================
     for r in refills:
+
         r.days_missed_display = (
             (today - r.next_appointment).days
             if r.next_appointment and r.next_appointment < today
@@ -635,7 +636,7 @@ def refill_list(request):
 
         r.missed_appointment = r.days_missed_display > 0
 
-        # ================= FY VL STATUS =================
+        # ================= VL FY LOGIC =================
         if not r.art_start_date:
             r.vl_status = "No ART"
 
@@ -663,9 +664,18 @@ def refill_list(request):
     )
 
     periods = [
-        {"name": "Daily", "page_obj": Paginator(daily_expected, 10).get_page(request.GET.get("daily_page"))},
-        {"name": "Weekly", "page_obj": Paginator(weekly_expected, 10).get_page(request.GET.get("weekly_page"))},
-        {"name": "Monthly", "page_obj": Paginator(monthly_expected, 10).get_page(request.GET.get("monthly_page"))},
+        {
+            "name": "Daily",
+            "page_obj": Paginator(daily_expected, 10).get_page(request.GET.get("daily_page"))
+        },
+        {
+            "name": "Weekly",
+            "page_obj": Paginator(weekly_expected, 10).get_page(request.GET.get("weekly_page"))
+        },
+        {
+            "name": "Monthly",
+            "page_obj": Paginator(monthly_expected, 10).get_page(request.GET.get("monthly_page"))
+        },
     ]
 
     return render(request, "refill_list.html", {
@@ -678,6 +688,9 @@ def refill_list(request):
         "search_unique_id": search_unique_id,
         "query_params": request.GET.urlencode(),
     })
+    
+    
+    
     
     
 def export_refills_to_excel(refills):
@@ -964,6 +977,7 @@ def refill_update(request, pk):
 
 @login_required
 def track_refills(request):
+    FY_START = date(2025, 10, 1)
     today = timezone.now().date()
 
     facility_id = request.GET.get("facility")
@@ -1177,6 +1191,7 @@ def daily_refill_list(request):
 @login_required
 def missed_refills(request):
     today = timezone.now().date()
+    FY_START = date(2025, 10, 1)
 
     # ================= GET FILTER PARAMETERS =================
     facility_id = request.GET.get("facility")
