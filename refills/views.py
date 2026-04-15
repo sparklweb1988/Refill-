@@ -1,3 +1,4 @@
+from dateutil.relativedelta import relativedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.db import transaction
@@ -372,10 +373,12 @@ def upload_excel(request):
 
 
 
-
 @login_required
 def dashboard(request):
     today = timezone.now().date()
+
+    # ================= FY START =================
+    FY_START = date(2025, 10, 1)
 
     # ---- DATE WINDOWS ----
     week_end = today + timedelta(days=7)
@@ -468,20 +471,28 @@ def dashboard(request):
                 if days_missed >= 28:
                     iit_total += 1
 
-        # ================= VL LOGIC =================
+        # ================= VL LOGIC (FY BASED) =================
 
-        # TX_CURR denominator (ALL active patients)
-        eligible_clients.append(r)
+        # TX_CURR denominator
+        if (
+            r.current_art_status in ["Active", "Active Restart", "Restart"]
+            and r.art_start_date
+            and r.art_start_date + relativedelta(months=6) <= today
+        ):
+            eligible_clients.append(r)
 
-        # VL sample collected (QUARTER)
-        if r.vl_sample_collection_date and quarter_start <= r.vl_sample_collection_date <= quarter_end:
+        # ================= VL SAMPLE COLLECTED (FY) =================
+        if (
+            r.vl_sample_collection_date
+            and r.vl_sample_collection_date >= FY_START
+        ):
             vl_sample_collected += 1
 
-        # VL results received (QUARTER)
+        # ================= VL RESULTS RECEIVED (FY) =================
         if (
             r.vl_result is not None
             and r.vl_sample_collection_date
-            and quarter_start <= r.vl_sample_collection_date <= quarter_end
+            and r.vl_sample_collection_date >= FY_START
         ):
             vl_result_received += 1
 
@@ -571,8 +582,10 @@ def dashboard(request):
     }
 
     return render(request, "dashboard.html", context)
-# ================================
 
+
+
+# ================================
 
 
 
@@ -580,6 +593,7 @@ def dashboard(request):
 @login_required
 def refill_list(request):
     from django.core.paginator import Paginator
+
     today = timezone.now().date()
     week_end = today + timedelta(days=7)
 
@@ -588,49 +602,65 @@ def refill_list(request):
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     search_unique_id = request.GET.get("search_unique_id")
-    export = request.GET.get("export")  # ✅ ADD THIS
+    export = request.GET.get("export")
 
     facilities = Facility.objects.all()
     case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
 
     refills = Refill.objects.all()
 
-    # Safe date parsing
-    start_date_obj = None
-    end_date_obj = None
-    try:
-        if start_date:
-            start_date_obj = timezone.datetime.strptime(start_date, "%Y-%m-%d").date()
-        if end_date:
-            end_date_obj = timezone.datetime.strptime(end_date, "%Y-%m-%d").date()
-    except:
-        pass
-
-    # Filters
+    # ================= FILTERS =================
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
+
     if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
-    if start_date_obj:
-        refills = refills.filter(next_appointment__gte=start_date_obj)
-    if end_date_obj:
-        refills = refills.filter(next_appointment__lte=end_date_obj)
+
+    if start_date:
+        refills = refills.filter(next_appointment__gte=start_date)
+
+    if end_date:
+        refills = refills.filter(next_appointment__lte=end_date)
+
     if search_unique_id:
         refills = refills.filter(unique_id__icontains=search_unique_id.strip())
 
-    # ✅ EXPORT EXCEL (DOES NOT BREAK ANYTHING)
-    if export == "excel":
-        return export_refills_to_excel(refills)
-
-    # Add display fields
+    # ================= FY VL STATUS =================
     for r in refills:
-        r.days_missed_display = (today - r.next_appointment).days if r.next_appointment and r.next_appointment < today else 0
+        r.days_missed_display = (
+            (today - r.next_appointment).days
+            if r.next_appointment and r.next_appointment < today
+            else 0
+        )
+
         r.missed_appointment = r.days_missed_display > 0
 
-    # Group by period
+        # ================= FY VL STATUS =================
+        if not r.art_start_date:
+            r.vl_status = "No ART"
+
+        elif r.art_start_date + relativedelta(months=6) > today:
+            r.vl_status = "Not Eligible (ART < 6 months)"
+
+        elif not r.vl_sample_collection_date:
+            r.vl_status = "Eligible (No VL yet)"
+
+        elif r.vl_sample_collection_date < FY_START:
+            r.vl_status = "Eligible (FY reset)"
+
+        else:
+            if r.age is None or r.age > 15:
+                r.vl_status = "VL done in FY (Adult - Not Eligible)"
+            else:
+                r.vl_status = "Child - Check 2nd VL rule"
+
+    # ================= PERIOD FILTERS =================
     daily_expected = refills.filter(next_appointment=today)
     weekly_expected = refills.filter(next_appointment__range=[today, week_end])
-    monthly_expected = refills.filter(next_appointment__year=today.year, next_appointment__month=today.month)
+    monthly_expected = refills.filter(
+        next_appointment__year=today.year,
+        next_appointment__month=today.month
+    )
 
     periods = [
         {"name": "Daily", "page_obj": Paginator(daily_expected, 10).get_page(request.GET.get("daily_page"))},
@@ -638,7 +668,7 @@ def refill_list(request):
         {"name": "Monthly", "page_obj": Paginator(monthly_expected, 10).get_page(request.GET.get("monthly_page"))},
     ]
 
-    context = {
+    return render(request, "refill_list.html", {
         "facilities": facilities,
         "case_managers": case_managers,
         "selected_facility": facility_id,
@@ -647,11 +677,9 @@ def refill_list(request):
         "today": today,
         "search_unique_id": search_unique_id,
         "query_params": request.GET.urlencode(),
-    }
-
-    return render(request, "refill_list.html", context)
-
-
+    })
+    
+    
 def export_refills_to_excel(refills):
 
     today = timezone.now().date()
@@ -934,137 +962,65 @@ def refill_update(request, pk):
 
 
 
-
 @login_required
 def track_refills(request):
     today = timezone.now().date()
-    start_of_week = today - timedelta(days=today.weekday())
-    start_of_month = today.replace(day=1)
 
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
-    start_date = request.GET.get("start_date")
-    end_date = request.GET.get("end_date")
-
-    start_date_obj = end_date_obj = None
-
-    # ================= DATE PARSING =================
-    if start_date:
-        try:
-            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-    if end_date:
-        try:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except ValueError:
-            pass
 
     facilities = Facility.objects.all()
 
-    # ================= CASE MANAGERS =================
-    case_managers_qs = (
-        Refill.objects.exclude(case_manager__isnull=True)
-        .exclude(case_manager__exact="")
-        .values_list("case_manager", flat=True)
-        .distinct()
-    )
-    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm.strip()})
-
-    # ================= FETCH DATA =================
     refills = list(Refill.objects.select_related("facility").all())
 
-    # ================= FILTERING =================
+    # ================= FILTERS =================
     if facility_id:
         refills = [r for r in refills if str(r.facility_id) == facility_id]
 
     if selected_case_manager:
         refills = [r for r in refills if r.case_manager == selected_case_manager]
 
-    if start_date_obj:
-        refills = [r for r in refills if r.last_pickup_date and r.last_pickup_date >= start_date_obj]
+    # ================= COMPUTE =================
+    for r in refills:
 
-    if end_date_obj:
-        refills = [r for r in refills if r.last_pickup_date and r.last_pickup_date <= end_date_obj]
-
-    # ================= COMPUTED VALUES =================
-    for refill in refills:
-
-        # Days missed
-        refill.days_missed_display = (
-            (today - refill.next_appointment).days
-            if refill.next_appointment and refill.next_appointment < today
+        r.days_missed_display = (
+            (today - r.next_appointment).days
+            if r.next_appointment and r.next_appointment < today
             else 0
         )
-        refill.missed_appointment = refill.days_missed_display > 0
 
-        # VL Status
-        refill.vl_status = "Eligible" if getattr(refill, "is_vl_eligible", False) else "Not Eligible"
+        r.missed_appointment = r.days_missed_display > 0
 
-        # ================= ✅ TB DISPLAY FIX =================
-        refill.tb_screening_date_display = refill.tb_screening_date or "-"
+        # ================= VL FY LOGIC =================
+        if not r.art_start_date:
+            r.vl_status = "No ART"
 
-        refill.tb_screening_type_display = (
-            refill.get_tb_screening_type_display()
-            if refill.tb_screening_type else "-"
-        )
+        elif r.art_start_date + relativedelta(months=6) > today:
+            r.vl_status = "Not Eligible"
 
-        refill.tb_status_display = (
-            refill.get_tb_status_display()
-            if refill.tb_status else "-"
-        )
+        elif not r.vl_sample_collection_date:
+            r.vl_status = "Eligible"
 
-        refill.tb_sample_collection_date_display = refill.tb_sample_collection_date or "-"
+        elif r.vl_sample_collection_date < FY_START:
+            r.vl_status = "Eligible (FY Reset)"
 
-        refill.tb_result_received_date_display = refill.tb_result_received_date or "-"
+        else:
+            r.vl_status = "VL Done in FY"
 
-        refill.tb_diagnostic_result_display = (
-            refill.get_tb_diagnostic_result_display()
-            if refill.tb_diagnostic_result else "-"
-        )
+        # ================= TB DISPLAY =================
+        r.tb_screening_type_display = r.get_tb_screening_type_display() if r.tb_screening_type else "-"
+        r.tb_status_display = r.get_tb_status_display() if r.tb_status else "-"
+        r.tb_diagnostic_result_display = r.get_tb_diagnostic_result_display() if r.tb_diagnostic_result else "-"
 
-        # Age
-        refill.age_display = refill.age or "-"
+        r.age_display = r.age or "-"
 
-        # AHD
-        refill.ahd_display = "Eligible" if getattr(refill, "ahd", False) else "Not Eligible"
-
-    # ================= PERIOD FILTERS =================
-    daily_list = [r for r in refills if r.last_pickup_date == today]
-
-    weekly_list = [
-        r for r in refills
-        if r.last_pickup_date and r.last_pickup_date >= start_of_week
-    ]
-
-    monthly_list = [
-        r for r in refills
-        if r.last_pickup_date and r.last_pickup_date >= start_of_month
-    ]
-
-    # ================= PAGINATION =================
-    daily_qs = Paginator(daily_list, 50).get_page(request.GET.get("daily_page"))
-    weekly_qs = Paginator(weekly_list, 50).get_page(request.GET.get("weekly_page"))
-    monthly_qs = Paginator(monthly_list, 50).get_page(request.GET.get("monthly_page"))
-
-    context = {
+    return render(request, "track_refills.html", {
         "facilities": facilities,
-        "case_managers": case_managers,
         "selected_facility": facility_id,
         "selected_case_manager": selected_case_manager,
-        "selected_start_date": start_date,
-        "selected_end_date": end_date,
         "today": today,
-        "periods": [
-            ("Daily", daily_qs),
-            ("Weekly", weekly_qs),
-            ("Monthly", monthly_qs),
-        ],
-    }
-
-    return render(request, "track_refills.html", context)
-
+        "refills": refills,
+    })
 def export_track_refills_to_excel(refills):
     today = timezone.now().date()
 
@@ -1161,73 +1117,58 @@ def export_all_track_refills_excel(request):
 
 
 
-
 @login_required
 def daily_refill_list(request):
     today = timezone.now().date()
+    FY_START = date(2025, 10, 1)
 
     facility_id = request.GET.get("facility")
-    facilities = Facility.objects.all()
-
-    # Case managers
-    case_managers_qs = (
-        Refill.objects.exclude(case_manager__isnull=True)
-        .exclude(case_manager__exact="")
-        .values_list("case_manager", flat=True)
-        .distinct()
-    )
-    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm.strip()})
     selected_case_manager = request.GET.get("case_manager")
 
-    # Daily refills
-    refills = Refill.objects.filter(next_appointment=today).order_by("unique_id")
+    facilities = Facility.objects.all()
+
+    refills = Refill.objects.filter(next_appointment=today)
+
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
+
     if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
 
-    # Prepare dynamic display fields for template
-    for refill in refills:
-        # VL status
-        if hasattr(refill, "vl_result") and refill.vl_result:
-            refill.vl_status_display = "Suppressed (<1000)" if getattr(refill, "is_suppressed", False) else "Not Suppressed (≥1000)"
+    for r in refills:
+
+        # ================= VL STATUS =================
+        if not r.art_start_date:
+            r.vl_status_display = "No ART"
+
+        elif r.art_start_date + relativedelta(months=6) > today:
+            r.vl_status_display = "Not Eligible"
+
+        elif not r.vl_sample_collection_date:
+            r.vl_status_display = "Eligible"
+
+        elif r.vl_sample_collection_date < FY_START:
+            r.vl_status_display = "Eligible (FY Reset)"
+
         else:
-            refill.vl_status_display = "No VL"
+            if r.age is None or r.age > 15:
+                r.vl_status_display = "Adult - VL Done in FY"
+            else:
+                r.vl_status_display = "Child - Monitor 2 VL rule"
 
-        # EAC Status
-        refill.eac_status_display = getattr(refill, "eac_status", "Not Eligible")
-        refill.post_eac_vl_due_display = getattr(refill, "post_eac_vl_due", False)
+        # ================= EAC =================
+        r.eac_status_display = getattr(r, "eac_status", "Not Eligible")
 
-        # AHD
-        refill.ahd_display = "Eligible" if getattr(refill, "ahd", False) else "Not Eligible"
+        # ================= AHD =================
+        r.ahd_display = "Eligible" if r.ahd else "Not Eligible"
 
-        # Age
-        refill.age_display = getattr(refill, "age", "-")
-
-        # TB fields using get_FIELD_display
-        refill.tb_screening_type_display = getattr(refill, "get_tb_screening_type_display", lambda: "-")()
-        refill.tb_status_display = getattr(refill, "get_tb_status_display", lambda: "-")()
-        refill.tb_diagnostic_result_display = getattr(refill, "get_tb_diagnostic_result_display", lambda: "-")()
-        refill.tb_cascade_status_display = getattr(refill, "tb_cascade_status", "-")
-        refill.tb_sample_collection_date_display = getattr(refill, "tb_sample_collection_date", "-")
-        refill.tb_result_received_date_display = getattr(refill, "tb_result_received_date", "-")
-
-        # Days missed for coloring
-        if refill.next_appointment and refill.next_appointment < today:
-            refill.days_missed_display = (today - refill.next_appointment).days
-        else:
-            refill.days_missed_display = 0
-
-    context = {
+    return render(request, "daily_refill_list.html", {
         "facilities": facilities,
         "selected_facility": facility_id,
-        "case_managers": case_managers,
-        "selected_case_manager": selected_case_manager,
+        "case_managers": Refill.objects.values_list("case_manager", flat=True).distinct(),
         "today": today,
         "refills": refills,
-    }
-    return render(request, "daily_refill_list.html", context)
-
+    })
 
 
 
@@ -1372,81 +1313,46 @@ def missed_refills(request):
     return render(request, "missed_refills.html", context)
 
 
-
 @login_required
 def track_vl(request):
     today = timezone.now().date()
+    FY_START = date(2025, 10, 1)
 
-    # ================== FILTERS ==================
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
-    selected_unique_id = request.GET.get("unique_id")
-    start_date = request.GET.get("start_date")
-    end_date = request.GET.get("end_date")
-
-    # Safe date parsing
-    start_date_obj = None
-    end_date_obj = None
-    if start_date:
-        try:
-            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except ValueError:
-            start_date_obj = None
-    if end_date:
-        try:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-        except ValueError:
-            end_date_obj = None
 
     facilities = Facility.objects.all()
-    refills = Refill.objects.all().order_by('-vl_sample_collection_date')
 
-    # Apply filters
+    refills = Refill.objects.all().order_by("-vl_sample_collection_date")
+
     if facility_id:
-        try:
-            refills = refills.filter(facility_id=int(facility_id))
-        except ValueError:
-            pass
+        refills = refills.filter(facility_id=facility_id)
+
     if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
-    if selected_unique_id:
-        refills = refills.filter(unique_id__icontains=selected_unique_id)
-    if start_date_obj:
-        refills = refills.filter(vl_sample_collection_date__gte=start_date_obj)
-    if end_date_obj:
-        refills = refills.filter(vl_sample_collection_date__lte=end_date_obj)
 
-    # ================== PAGINATION ==================
-    paginator = Paginator(refills, 10)  # 10 per page
+    # ================= FY FILTER =================
+    refills = refills.filter(
+        Q(vl_sample_collection_date__gte=FY_START) | Q(vl_sample_collection_date__isnull=True)
+    )
+
+    # ================= PAGINATION =================
+    paginator = Paginator(refills, 10)
     page_number = request.GET.get("page")
     vl_refills = paginator.get_page(page_number)
 
-    # ================== CASE MANAGERS ==================
-    case_managers_qs = (
-        Refill.objects.exclude(case_manager__isnull=True)
-        .exclude(case_manager__exact="")
-        .values_list("case_manager", flat=True)
-        .distinct()
-    )
-    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
-
-    # ================== EXCEL DOWNLOAD ==================
     if "download" in request.GET:
         return export_vl_to_excel(refills)
 
-    context = {
+    return render(request, "track_vl.html", {
         "facilities": facilities,
         "selected_facility": facility_id,
-        "case_managers": case_managers,
-        "selected_case_manager": selected_case_manager,
-        "selected_unique_id": selected_unique_id,
-        "selected_start_date": start_date,
-        "selected_end_date": end_date,
+        "case_managers": Refill.objects.values_list("case_manager", flat=True).distinct(),
         "vl_refills": vl_refills,
-    }
-
-    return render(request, "track_vl.html", context)
-
+        "today": today,
+    })
+    
+    
 
 def export_vl_to_excel(refills):
     today = timezone.now().date()

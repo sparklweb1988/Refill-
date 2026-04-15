@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.db.models import F, Q
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-
+from datetime import date
 
 class Facility(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -19,7 +19,6 @@ class Facility(models.Model):
 
     def __str__(self):
         return self.name
-
 
 
 
@@ -135,6 +134,7 @@ class Refill(models.Model):
 
     def save(self, *args, **kwargs):
         today = timezone.now().date()
+
         self.calculate_dates()
 
         if self.next_appointment and self.next_appointment < today:
@@ -151,25 +151,33 @@ class Refill(models.Model):
     @property
     def is_vl_eligible(self):
         today = timezone.now().date()
+        FY_START = date(2025, 10, 1)
 
+        # Must have ART start date
         if not self.art_start_date:
             return False
 
+        # Must be on ART for at least 6 months
         if self.art_start_date + relativedelta(months=6) > today:
             return False
 
+        # If no VL ever done → eligible
         if not self.vl_sample_collection_date:
             return True
 
-        # FIXED INDENTATION HERE ✅
-        if self.age is None:
-            next_due_date = self.vl_sample_collection_date + relativedelta(months=12)
-        elif self.age > 15:
-            next_due_date = self.vl_sample_collection_date + relativedelta(years=1)
-        else:
-            next_due_date = self.vl_sample_collection_date + relativedelta(months=6)
+        # If VL is before FY → eligible again
+        if self.vl_sample_collection_date < FY_START:
+            return True
 
-        return today >= next_due_date
+        # ================= FY RULES =================
+
+        # ADULT (>=16 or age > 15)
+        if self.age is None or self.age > 15:
+            return False  # already had VL in FY
+
+        # CHILD (≤15)
+        else:
+            return True  # allow up to 2 per FY (needs VL history table for strict enforcement)
 
     # ================= SUPPRESSION =================
     @property
@@ -207,12 +215,17 @@ class Refill(models.Model):
 
     @property
     def post_eac_vl_due(self):
-        return self.eac_sessions_completed >= 3 and self.vl_result is not None and self.vl_result >= 1000
+        return (
+            self.eac_sessions_completed >= 3
+            and self.vl_result is not None
+            and self.vl_result >= 1000
+        )
 
     # ================= TPT =================
     @property
     def tpt_status(self):
         today = timezone.now().date()
+
         if not self.tpt_start_date:
             return "Not Started"
         if self.tpt_completion_date:
@@ -237,15 +250,15 @@ class Refill(models.Model):
             return f"{28 - self.days_missed} days to IIT"
         return "On Track"
 
-    # ================= Client Tracking =================
+    # ================= TRACKING =================
     tracking_date_1 = models.DateField(null=True, blank=True)
     tracking_date_2 = models.DateField(null=True, blank=True)
     tracking_date_3 = models.DateField(null=True, blank=True)
 
     tracked_by = models.CharField(max_length=100, null=True, blank=True)
 
-    # ================= Discontinuation =================
-    YES_NO_CHOICES = [('Y','Yes'),('N','No')]
+    # ================= DISCONTINUATION =================
+    YES_NO_CHOICES = [('Y', 'Yes'), ('N', 'No')]
 
     patient_discontinued = models.CharField(
         max_length=1,
@@ -255,8 +268,8 @@ class Refill(models.Model):
     )
 
     DISCONTINUED_REASONS = [
-        ('Transferred Out','Transferred Out'),
-        ('Death','Death'),
+        ('Transferred Out', 'Transferred Out'),
+        ('Death', 'Death'),
     ]
 
     discontinued_reason = models.CharField(
@@ -268,7 +281,7 @@ class Refill(models.Model):
 
     discontinued_date = models.DateField(null=True, blank=True)
 
-    # ================= Returned =================
+    # ================= RETURNED =================
     returned_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
