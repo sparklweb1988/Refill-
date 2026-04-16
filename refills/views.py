@@ -371,6 +371,7 @@ def upload_excel(request):
 
 
 
+
 @login_required
 def dashboard(request):
     today = timezone.now().date()
@@ -463,23 +464,24 @@ def dashboard(request):
         if r.last_pickup_date and r.last_pickup_date == today:
             daily_refills += 1
 
-        # ================= FIXED MISSED / IIT =================
+        # ---------------- MISSED / IIT ----------------
         if r.next_appointment:
+            days_missed = (
+                (today - r.next_appointment).days
+                if r.next_appointment < today
+                else 0
+            )
 
-            days_missed = (today - r.next_appointment).days if r.next_appointment < today else 0
-
-            # monthly missed (still monthly scoped)
             if month_start <= r.next_appointment <= month_end and days_missed > 0:
                 monthly_missed_total += 1
 
-            # ================= IIT (CURRENT MONTH ONLY) =================
             if (
                 month_start <= r.next_appointment <= month_end
                 and days_missed >= 28
             ):
                 iit_total += 1
 
-        # ================= VL ELIGIBILITY =================
+        # ---------------- VL ELIGIBILITY ----------------
         if (
             r.current_art_status in ["Active", "Active Restart", "Restart"]
             and r.art_start_date
@@ -487,14 +489,14 @@ def dashboard(request):
         ):
             eligible_clients.append(r)
 
-        # ================= VL SAMPLE COLLECTED =================
+        # ---------------- VL SAMPLE COLLECTED ----------------
         if r.vl_sample_collection_date:
             vl_sample_collected += 1
 
             if quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 quarter_vl_collected += 1
 
-        # ================= VL RESULT RECEIVED =================
+        # ---------------- VL RESULT RECEIVED ----------------
         if r.vl_result is not None and r.vl_sample_collection_date:
             vl_result_received += 1
 
@@ -504,8 +506,7 @@ def dashboard(request):
             if quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 quarter_vl_result_received += 1
 
-        # ================= TB COUNTERS (UNCHANGED FIXED VERSION) =================
-
+        # ---------------- TB COUNTERS ----------------
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
             tb_screened += 1
 
@@ -529,7 +530,10 @@ def dashboard(request):
     # ================= FINAL CALCULATIONS =================
     vl_denominator = len(eligible_clients)
 
-    vl_coverage = round((vl_sample_collected / vl_denominator) * 100, 1) if vl_denominator else 0
+    vl_coverage = (
+        round((vl_sample_collected / vl_denominator) * 100, 1)
+        if vl_denominator else 0
+    )
 
     vl_suppression_rate = (
         round((suppressed_count / vl_result_received) * 100, 1)
@@ -544,7 +548,6 @@ def dashboard(request):
         "selected_facility": facility_id,
         "today": today,
 
-        # EXPECTED / IIT
         "daily_expected": daily_expected,
         "daily_refills": daily_refills,
         "weekly_expected": weekly_expected,
@@ -552,7 +555,6 @@ def dashboard(request):
         "monthly_missed_total": monthly_missed_total,
         "iit_total": iit_total,
 
-        # VL
         "vl_denominator": vl_denominator,
         "vl_sample_collected": vl_sample_collected,
         "vl_result_received": vl_result_received,
@@ -560,93 +562,13 @@ def dashboard(request):
         "vl_coverage_gap": vl_coverage_gap,
         "vl_suppression_rate": vl_suppression_rate,
 
-        # QUARTERLY VL
         "quarter_vl_collected": quarter_vl_collected,
         "quarter_vl_result_received": quarter_vl_result_received,
 
-        # EAC / AHD
         "eac_count": eac_count,
         "post_eac_vl_count": post_eac_vl_count,
         "ahd_count": ahd_count,
 
-        # TB
-        "tb_screened": tb_screened,
-        "tb_presumptive": tb_presumptive,
-        "tb_sample_collected": tb_sample_collected,
-        "tb_result_received": tb_result_received,
-        "tb_positive": tb_positive,
-        "tb_negative": tb_negative,
-    }
-
-    return render(request, "dashboard.html", context)
-
-    
-        # ================= TB COUNTERS (UNCHANGED FIXED VERSION) =================
-
-        if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
-            tb_screened += 1
-
-        if r.tb_status and r.tb_status.strip() == "Presumptive TB":
-            tb_presumptive += 1
-
-        if r.tb_sample_collection_date and month_start <= r.tb_sample_collection_date <= month_end:
-            tb_sample_collected += 1
-
-        if r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
-            tb_result_received += 1
-
-        if r.tb_diagnostic_result:
-            result = r.tb_diagnostic_result.strip()
-
-            if result == "Positive":
-                tb_positive += 1
-            elif result == "Negative":
-                tb_negative += 1
-
-    # ================= FINAL CALCULATIONS =================
-    vl_denominator = len(eligible_clients)
-
-    vl_coverage = round((vl_sample_collected / vl_denominator) * 100, 1) if vl_denominator else 0
-
-    vl_suppression_rate = (
-        round((suppressed_count / vl_result_received) * 100, 1)
-        if vl_result_received else 0
-    )
-
-    vl_coverage_gap = max(0, vl_denominator - vl_sample_collected)
-
-    # ================= CONTEXT =================
-    context = {
-        "facilities": facilities,
-        "selected_facility": facility_id,
-        "today": today,
-
-        # EXPECTED / IIT
-        "daily_expected": daily_expected,
-        "daily_refills": daily_refills,
-        "weekly_expected": weekly_expected,
-        "monthly_expected": monthly_expected,
-        "monthly_missed_total": monthly_missed_total,
-        "iit_total": iit_total,
-
-        # VL
-        "vl_denominator": vl_denominator,
-        "vl_sample_collected": vl_sample_collected,
-        "vl_result_received": vl_result_received,
-        "vl_coverage": vl_coverage,
-        "vl_coverage_gap": vl_coverage_gap,
-        "vl_suppression_rate": vl_suppression_rate,
-
-        # QUARTERLY VL
-        "quarter_vl_collected": quarter_vl_collected,
-        "quarter_vl_result_received": quarter_vl_result_received,
-
-        # EAC / AHD
-        "eac_count": eac_count,
-        "post_eac_vl_count": post_eac_vl_count,
-        "ahd_count": ahd_count,
-
-        # TB
         "tb_screened": tb_screened,
         "tb_presumptive": tb_presumptive,
         "tb_sample_collected": tb_sample_collected,
