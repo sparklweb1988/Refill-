@@ -1,6 +1,6 @@
 asgiref==3.11.1
 dj-database-url==3.1.1
-Django==6.0.2
+Django==5.2.5
 django-filter==25.2
 et_xmlfile==2.0.0
 gunicorn==25.0.3
