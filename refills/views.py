@@ -460,16 +460,20 @@ def dashboard(request):
             daily_refills += 1
 
         # ================= FIXED MISSED / IIT =================
-        if r.next_appointment:
-            days_missed = (today - r.next_appointment).days if r.next_appointment < today else 0
+if r.next_appointment:
 
-            # monthly missed (still monthly scoped)
-            if month_start <= r.next_appointment <= month_end and days_missed > 0:
-                monthly_missed_total += 1
+    days_missed = (today - r.next_appointment).days if r.next_appointment < today else 0
 
-            # IIT (GLOBAL FIX)
-            if days_missed >= 28:
-                iit_total += 1
+    # monthly missed (still monthly scoped)
+    if month_start <= r.next_appointment <= month_end and days_missed > 0:
+        monthly_missed_total += 1
+
+    # ================= IIT (CURRENT MONTH ONLY) =================
+    if (
+        month_start <= r.next_appointment <= month_end
+        and days_missed >= 28
+    ):
+        iit_total += 1
 
         # ================= VL ELIGIBILITY =================
         if (
