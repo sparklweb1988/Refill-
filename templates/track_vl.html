@@ -1,11 +1,48 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
+<style>
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* ================= MOBILE CARDS ================= */
+.mobile-view {
+    display: none;
+}
+
+.mobile-card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.mobile-card strong {
+    display: inline-block;
+    width: 140px;
+}
+
+/* Hide table on mobile */
+@media (max-width: 768px) {
+    .table-responsive {
+        display: none;
+    }
+
+    .mobile-view {
+        display: block;
+    }
+}
+</style>
+
 <div class="container mt-4">
 
     <!-- Filters -->
     <form method="get" class="row g-3 mb-4">
-        <!-- Facility -->
+
         <div class="col-md-3">
             <select name="facility" class="form-select" onchange="this.form.submit()">
                 <option value="">All Facilities</option>
@@ -17,111 +54,131 @@
             </select>
         </div>
 
-        <!-- Case Manager -->
         <div class="col-md-3">
             <select name="case_manager" class="form-select" onchange="this.form.submit()">
                 <option value="">All Case Managers</option>
                 {% for cm in case_managers %}
-                    <option value="{{ cm }}" {% if cm == selected_case_manager %}selected{% endif %}>{{ cm }}</option>
+                    <option value="{{ cm }}" {% if cm == selected_case_manager %}selected{% endif %}>
+                        {{ cm }}
+                    </option>
                 {% endfor %}
             </select>
         </div>
 
-        <!-- Unique ID -->
         <div class="col-md-3">
-            <input type="text" name="unique_id" class="form-control" placeholder="Unique ID" value="{{ selected_unique_id|default_if_none:'' }}">
+            <input type="text" name="unique_id" class="form-control"
+                   placeholder="Unique ID" value="{{ selected_unique_id|default_if_none:'' }}">
         </div>
 
-        <!-- Date Range -->
         <div class="col-md-3 d-flex">
             <input type="date" name="start_date" class="form-control me-2" value="{{ selected_start_date }}">
             <input type="date" name="end_date" class="form-control me-2" value="{{ selected_end_date }}">
             <button type="submit" class="btn btn-primary">Filter</button>
         </div>
+
     </form>
 
     <!-- Download Button -->
     <div class="mb-3">
-        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=1" class="btn btn-success">
+        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=1"
+           class="btn btn-success">
             Download Excel
         </a>
     </div>
 
-    <!-- Track VL Table -->
+    <!-- ================= DESKTOP TABLE ================= -->
     <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle">
             <thead class="table-dark text-center">
                 <tr>
                     <th>Unique ID</th>
-                    <th>Date VL Collected</th>
-
-
-                    <th>VL Result (copies/ml)</th>
-
+                    <th>VL Date Collected</th>
                     <th>Date Refilled</th>
+                    <th>VL Result</th>
                     <th>Case Manager</th>
                 </tr>
             </thead>
+
             <tbody>
                 {% for refill in vl_refills %}
                 <tr class="text-center">
                     <td>{{ refill.unique_id }}</td>
                     <td>{{ refill.vl_sample_collection_date|default:"-" }}</td>
+                    <td>{{ refill.last_pickup_date|default:"-" }}</td>
 
-
-                    <!-- VL Result with conditional coloring -->
                     <td class="{% if refill.vl_result and refill.vl_result > 1000 %}text-danger fw-bold{% endif %}">
                         {{ refill.vl_result|default:"-" }}
                     </td>
 
-                    <td>{{ refill.last_pickup_date|default:"-" }}</td>
                     <td>{{ refill.case_manager|default:"-" }}</td>
                 </tr>
+
                 {% empty %}
                 <tr>
-
-                    <td colspan="4" class="text-center">No records found.</td>
-
                     <td colspan="5" class="text-center">No records found.</td>
-
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <!-- Pagination -->
+    <!-- ================= MOBILE CARDS ================= -->
+    <div class="mobile-view">
+
+        {% for refill in vl_refills %}
+
+        <div class="mobile-card">
+
+            <div><strong>Unique ID:</strong> {{ refill.unique_id }}</div>
+            <div><strong>VL Collected:</strong> {{ refill.vl_sample_collection_date|default:"-" }}</div>
+            <div><strong>Date Refilled:</strong> {{ refill.last_pickup_date|default:"-" }}</div>
+
+            <div>
+                <strong>VL Result:</strong>
+                <span class="{% if refill.vl_result and refill.vl_result > 1000 %}text-danger fw-bold{% endif %}">
+                    {{ refill.vl_result|default:"-" }}
+                </span>
+            </div>
+
+            <div><strong>Case Manager:</strong> {{ refill.case_manager|default:"-" }}</div>
+
+        </div>
+
+        {% empty %}
+        <p class="text-center">No records found.</p>
+        {% endfor %}
+
+    </div>
+
+    <!-- ================= PAGINATION ================= -->
     {% if vl_refills.has_other_pages %}
-    <nav aria-label="Page navigation">
+    <nav>
         <ul class="pagination justify-content-center">
-            <!-- Previous -->
+
             {% if vl_refills.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.previous_page_number }}" aria-label="Previous">
-                    &laquo; Previous
+                <a class="page-link"
+                   href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.previous_page_number }}">
+                    Previous
                 </a>
             </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">&laquo; Previous</span></li>
             {% endif %}
 
-            <!-- Page X of Y -->
-            <li class="page-item disabled mx-2">
+            <li class="page-item disabled">
                 <span class="page-link">
                     Page {{ vl_refills.number }} of {{ vl_refills.paginator.num_pages }}
                 </span>
             </li>
 
-            <!-- Next -->
             {% if vl_refills.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.next_page_number }}" aria-label="Next">
-                    Next &raquo;
+                <a class="page-link"
+                   href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.next_page_number }}">
+                    Next
                 </a>
             </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">Next &raquo;</span></li>
             {% endif %}
+
         </ul>
     </nav>
     {% endif %}
@@ -129,4 +186,3 @@
 </div>
 
 {% endblock %}
-
