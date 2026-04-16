@@ -367,10 +367,6 @@ def upload_excel(request):
 
     return render(request, 'upload.html', {'form': form})
 
-
-
-
-
 @login_required
 def dashboard(request):
     today = timezone.now().date()
@@ -463,17 +459,19 @@ def dashboard(request):
         if r.last_pickup_date and r.last_pickup_date == today:
             daily_refills += 1
 
-        # ---------------- MISSED / IIT ----------------
-        if r.next_appointment and month_start <= r.next_appointment <= month_end:
+        # ================= FIXED MISSED / IIT =================
+        if r.next_appointment:
             days_missed = (today - r.next_appointment).days if r.next_appointment < today else 0
 
-            if days_missed > 0:
+            # monthly missed (still monthly scoped)
+            if month_start <= r.next_appointment <= month_end and days_missed > 0:
                 monthly_missed_total += 1
 
-                if days_missed >= 28:
-                    iit_total += 1
+            # IIT (GLOBAL FIX)
+            if days_missed >= 28:
+                iit_total += 1
 
-        # ================= VL ELIGIBLE DENOMINATOR =================
+        # ================= VL ELIGIBILITY =================
         if (
             r.current_art_status in ["Active", "Active Restart", "Restart"]
             and r.art_start_date
@@ -485,56 +483,39 @@ def dashboard(request):
         if r.vl_sample_collection_date:
             vl_sample_collected += 1
 
-            # QUARTER VL COLLECTED
             if quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 quarter_vl_collected += 1
 
         # ================= VL RESULT RECEIVED =================
-        if (
-            r.vl_result is not None
-            and r.vl_sample_collection_date
-        ):
+        if r.vl_result is not None and r.vl_sample_collection_date:
             vl_result_received += 1
 
             if r.vl_result < 1000:
                 suppressed_count += 1
 
-            # QUARTER VL RESULT RECEIVED
             if quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 quarter_vl_result_received += 1
 
-        # ---------------- TB CASCADE ----------------
+        # ================= TB COUNTERS (UNCHANGED FIXED VERSION) =================
+
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
             tb_screened += 1
 
-        if (
-            r.tb_cascade_status
-            and r.tb_cascade_status.lower() == "presumptive"
-            and r.tb_screening_date
-            and month_start <= r.tb_screening_date <= month_end
-        ):
+        if r.tb_status and r.tb_status.strip() == "Presumptive TB":
             tb_presumptive += 1
 
-        if (
-            r.tb_cascade_status
-            and r.tb_cascade_status.lower() == "sample collected"
-            and r.tb_screening_date
-            and month_start <= r.tb_screening_date <= month_end
-        ):
+        if r.tb_sample_collection_date and month_start <= r.tb_sample_collection_date <= month_end:
             tb_sample_collected += 1
 
         if r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
             tb_result_received += 1
 
-        if (
-            r.tb_diagnostic_result
-            and r.tb_result_received_date
-            and month_start <= r.tb_result_received_date <= month_end
-        ):
-            if r.tb_diagnostic_result.lower() == "positive":
-                tb_positive += 1
+        if r.tb_diagnostic_result:
+            result = r.tb_diagnostic_result.strip()
 
-            if r.tb_diagnostic_result.lower() == "negative":
+            if result == "Positive":
+                tb_positive += 1
+            elif result == "Negative":
                 tb_negative += 1
 
     # ================= FINAL CALCULATIONS =================
@@ -590,6 +571,7 @@ def dashboard(request):
     }
 
     return render(request, "dashboard.html", context)
+
 
 
 # ================================
@@ -992,9 +974,15 @@ def track_refills(request):
     selected_case_manager = request.GET.get("case_manager")
 
     facilities = Facility.objects.all()
+    case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
 
+    # ================= CURRENT MONTH RANGE =================
+    month_start = today.replace(day=1)
+    month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+    # ================= ONLY REFILLS IN CURRENT MONTH =================
     refills = Refill.objects.select_related("facility").filter(
-        next_appointment__isnull=False
+        last_pickup_date__range=(month_start, month_end)
     )
 
     # ================= FILTERS =================
@@ -1004,24 +992,18 @@ def track_refills(request):
     if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
 
-    # ================= PERIODS =================
-    week_end = today + timedelta(days=7)
-    month_end = today + timedelta(days=30)
-
-    today_list = []
-    weekly_list = []
-    monthly_list = []
+    filtered_refills = []
 
     for r in refills:
 
-        # missed days
+        # ================= DAYS MISSED =================
         r.days_missed_display = (
             (today - r.next_appointment).days
             if r.next_appointment and r.next_appointment < today
             else 0
         )
 
-        # VL STATUS
+        # ================= VL STATUS =================
         if not r.art_start_date:
             r.vl_status = "No ART"
         elif r.art_start_date + relativedelta(months=6) > today:
@@ -1033,33 +1015,36 @@ def track_refills(request):
         else:
             r.vl_status = "VL Done"
 
+        # ================= DISPLAY FIELDS =================
         r.age_display = r.age or "-"
 
-        # GROUPING
-        if r.next_appointment == today:
-            today_list.append(r)
-        elif today < r.next_appointment <= week_end:
-            weekly_list.append(r)
-        elif week_end < r.next_appointment <= month_end:
-            monthly_list.append(r)
+        r.tracking_date_1_display = r.tracking_date_1
+        r.tracking_date_2_display = r.tracking_date_2
+        r.tracking_date_3_display = r.tracking_date_3
 
-    # ================= MERGE FOR PAGINATION =================
-    all_refills = today_list + weekly_list + monthly_list
+        r.patient_discontinued_display = (
+            dict(r._meta.get_field('patient_discontinued').choices).get(
+                r.patient_discontinued, ""
+            ) if r.patient_discontinued else "-"
+        )
 
-    paginator = Paginator(all_refills, 10)
+        # ================= ADD DIRECTLY =================
+        filtered_refills.append(r)
+
+    # ================= PAGINATION =================
+    paginator = Paginator(filtered_refills, 10)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
     return render(request, "track_refills.html", {
         "facilities": facilities,
+        "case_managers": case_managers,
         "selected_facility": facility_id,
         "selected_case_manager": selected_case_manager,
         "today": today,
-
-        # IMPORTANT
         "page_obj": page_obj,
     })
-
+    
     
 def export_track_refills_to_excel(refills):
     today = timezone.now().date()
@@ -1198,7 +1183,7 @@ def daily_refill_list(request):
             r.vl_status_display = "Eligible"
 
         elif r.vl_sample_collection_date < FY_START:
-            r.vl_status_display = "Eligible (FY Reset)"
+            r.vl_status_display = "Eligible"
 
         else:
             if r.age is None or r.age > 15:

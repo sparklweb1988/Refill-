@@ -6,31 +6,11 @@
 <style>
 .table-container { overflow-x: auto; }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+.overdue { background-color: #ffe6e6 !important; }
 
-thead th {
-  white-space: nowrap;
-}
+.pagination { justify-content: center; margin-top: 20px; }
 
-tbody td {
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.overdue {
-  background-color: #ffe6e6 !important;
-}
-
-/* PAGINATION */
-.pagination {
-  justify-content: center;
-  margin-top: 20px;
-}
-
-/* MOBILE CARDS */
+/* MOBILE */
 .mobile-card {
   border: 1px solid #ddd;
   border-radius: 12px;
@@ -39,21 +19,13 @@ tbody td {
   background: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
+.mobile-card.overdue { background-color: #ffe6e6; }
 
-.mobile-card.overdue {
-  background-color: #ffe6e6;
-}
+.card-title { font-weight: bold; }
 
-.card-title {
-  font-weight: bold;
-  margin-bottom: 6px;
-}
-
-/* RESPONSIVE SWITCH */
 @media (max-width: 768px) {
   .desktop-view { display: none; }
 }
-
 @media (min-width: 769px) {
   .mobile-view { display: none; }
 }
@@ -63,7 +35,36 @@ tbody td {
 
 <h4 class="text-center mb-3">Track Refills</h4>
 
-<!-- DOWNLOAD BUTTON -->
+<!-- FILTERS -->
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+        <select name="facility" class="form-select">
+            <option value="">All Facilities</option>
+            {% for f in facilities %}
+            <option value="{{ f.id }}" {% if f.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+                {{ f.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <select name="case_manager" class="form-select">
+            <option value="">All Case Managers</option>
+            {% for cm in case_managers %}
+            <option value="{{ cm }}" {% if cm == selected_case_manager %}selected{% endif %}>
+                {{ cm }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-md-2">
+        <button class="btn btn-primary w-100">Filter</button>
+    </div>
+</form>
+
+<!-- DOWNLOAD -->
 <div class="text-end mb-3">
     <a href="{% url 'export_track_refills_excel' %}" class="btn btn-success">
         Download Excel
@@ -74,98 +75,114 @@ tbody td {
 <div class="desktop-view table-container">
 
 <table class="table table-bordered table-hover">
-
 <thead class="table-dark">
 <tr>
-    <th>Unique ID</th>
+    <th>ID</th>
     <th>Facility</th>
-    <th>Age</th>
-    <th>Sex</th>
-    <th>Next Appointment</th>
-    <th>Missed Days</th>
-    <th>VL Status</th>
-    <th>Regimen</th>
-    <th>Case Manager</th>
+    <th>Refill Date</th>
+    <th>Next Appt</th>
+    <th>VL</th>
+    <th>Tracking 1</th>
+    <th>Tracking 2</th>
+    <th>Tracking 3</th>
+    <th>Tracked By</th>
+    <th>Discontinued</th>
+    <th>Reason</th>
+    <th>Date</th>
+    <th>Returned</th>
 </tr>
 </thead>
 
 <tbody>
-
 {% for r in page_obj %}
-
-<tr {% if r.next_appointment and r.next_appointment < today %}class="overdue"{% endif %}>
+<tr {% if r.next_appointment < today %}class="overdue"{% endif %}>
     <td>{{ r.unique_id }}</td>
     <td>{{ r.facility.name }}</td>
-    <td>{{ r.age_display }}</td>
-    <td>{{ r.sex }}</td>
+    <td>{{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ r.next_appointment|date:"Y-m-d" }}</td>
-    <td>{{ r.days_missed_display }}</td>
+   
     <td>{{ r.vl_status }}</td>
-    <td>{{ r.current_regimen }}</td>
-    <td>{{ r.case_manager }}</td>
-</tr>
 
+    <td>{{ r.tracking_date_1|date:"Y-m-d"|default:"-" }}</td>
+    <td>{{ r.tracking_date_2|date:"Y-m-d"|default:"-" }}</td>
+    <td>{{ r.tracking_date_3|date:"Y-m-d"|default:"-" }}</td>
+    <td>{{ r.tracked_by|default:"-" }}</td>
+
+    <td>{{ r.patient_discontinued_display }}</td>
+    <td>{{ r.discontinued_reason|default:"-" }}</td>
+    <td>{{ r.discontinued_date|date:"Y-m-d"|default:"-" }}</td>
+    <td>{{ r.returned_date|date:"Y-m-d"|default:"-" }}</td>
+</tr>
 {% empty %}
 <tr>
-    <td colspan="9" class="text-center">No records found</td>
+<td colspan="14" class="text-center">No records</td>
 </tr>
 {% endfor %}
-
 </tbody>
-
 </table>
+
 </div>
 
-<!-- ================= MOBILE CARDS ================= -->
+<!-- ================= MOBILE ================= -->
 <div class="mobile-view">
 
 {% for r in page_obj %}
-
-<div class="mobile-card {% if r.next_appointment and r.next_appointment < today %}overdue{% endif %}">
+<div class="mobile-card {% if r.next_appointment < today %}overdue{% endif %}">
 
   <div class="card-title">{{ r.unique_id }}</div>
 
   <div><strong>Facility:</strong> {{ r.facility.name }}</div>
-  <div><strong>Age:</strong> {{ r.age_display }} | <strong>Sex:</strong> {{ r.sex }}</div>
+  <div><strong>Refill Date:</strong> {{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</div>
+  <div><strong>Next:</strong> {{ r.next_appointment|date:"Y-m-d" }}</div>
+ 
+  <div><strong>VL:</strong> {{ r.vl_status }}</div>
 
-  <div><strong>Next Appointment:</strong> {{ r.next_appointment|date:"Y-m-d" }}</div>
-  <div><strong>Missed Days:</strong> {{ r.days_missed_display }}</div>
+  <hr>
 
-  <div><strong>VL Status:</strong> {{ r.vl_status }}</div>
-  <div><strong>Regimen:</strong> {{ r.current_regimen }}</div>
-  <div><strong>Case Manager:</strong> {{ r.case_manager }}</div>
+  <div><strong>Tracking:</strong></div>
+  <div>{{ r.tracking_date_1|date:"Y-m-d"|default:"-" }}</div>
+  <div>{{ r.tracking_date_2|date:"Y-m-d"|default:"-" }}</div>
+  <div>{{ r.tracking_date_3|date:"Y-m-d"|default:"-" }}</div>
+
+  <div><strong>Tracked By:</strong> {{ r.tracked_by|default:"-" }}</div>
+
+  <hr>
+
+  <div><strong>Discontinued:</strong> {{ r.patient_discontinued_display }}</div>
+  <div><strong>Reason:</strong> {{ r.discontinued_reason|default:"-" }}</div>
+  <div><strong>Date:</strong> {{ r.discontinued_date|date:"Y-m-d"|default:"-" }}</div>
+  <div><strong>Returned:</strong> {{ r.returned_date|date:"Y-m-d"|default:"-" }}</div>
 
 </div>
-
 {% empty %}
 <p class="text-center">No records found</p>
 {% endfor %}
 
 </div>
 
-<!-- ================= PAGINATION ================= -->
+<!-- PAGINATION -->
 <nav>
-  <ul class="pagination">
+<ul class="pagination">
 
-    {% if page_obj.has_previous %}
-      <li class="page-item">
-        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
-      </li>
-    {% endif %}
+{% if page_obj.has_previous %}
+<li class="page-item">
+<a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+</li>
+{% endif %}
 
-    <li class="page-item active">
-      <span class="page-link">
-        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-      </span>
-    </li>
+<li class="page-item active">
+<span class="page-link">
+Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+</span>
+</li>
 
-    {% if page_obj.has_next %}
-      <li class="page-item">
-        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
-      </li>
-    {% endif %}
+{% if page_obj.has_next %}
+<li class="page-item">
+<a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+</li>
+{% endif %}
 
-  </ul>
+</ul>
 </nav>
 
 </div>
