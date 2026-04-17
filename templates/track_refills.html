@@ -58,6 +58,8 @@
             {% endfor %}
         </select>
     </div>
+    <input type="date" name="start_date" value="{{ request.GET.start_date }}" class="form-control w-auto">
+    <input type="date" name="end_date" value="{{  request.GET.end_date}}" class="form-control w-auto">
 
     <div class="col-md-2">
         <button class="btn btn-primary w-100">Filter</button>

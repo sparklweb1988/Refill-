@@ -981,19 +981,44 @@ def track_refills(request):
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
 
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    # ================= PARSE DATES =================
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = None
+
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except ValueError:
+            end_date = None
+
     facilities = Facility.objects.all()
     case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
 
-    # ================= CURRENT MONTH RANGE =================
+    # ================= DEFAULT MONTH RANGE =================
     month_start = today.replace(day=1)
     month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
-    # ================= ONLY REFILLS IN CURRENT MONTH =================
-    refills = Refill.objects.select_related("facility").filter(
-        last_pickup_date__range=(month_start, month_end)
-    )
+    # ================= BASE QUERY =================
+    refills = Refill.objects.select_related("facility")
 
-    # ================= FILTERS =================
+    # ================= DATE FILTER =================
+    if start_date and end_date:
+        refills = refills.filter(last_pickup_date__range=[start_date, end_date])
+    elif start_date:
+        refills = refills.filter(last_pickup_date__gte=start_date)
+    elif end_date:
+        refills = refills.filter(last_pickup_date__lte=end_date)
+    else:
+        # Default: current month
+        refills = refills.filter(last_pickup_date__range=(month_start, month_end))
+
+    # ================= OTHER FILTERS =================
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
 
@@ -1036,7 +1061,6 @@ def track_refills(request):
             ) if r.patient_discontinued else "-"
         )
 
-        # ================= ADD DIRECTLY =================
         filtered_refills.append(r)
 
     # ================= PAGINATION =================
