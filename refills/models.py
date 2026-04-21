@@ -29,9 +29,6 @@ class Facility(models.Model):
 
 
 
-
-
-
 class Refill(models.Model):
 
     SEX_CHOICES = (
@@ -71,6 +68,12 @@ class Refill(models.Model):
         ('Negative', 'Negative'),
     )
 
+    YES_NO_CHOICES = (
+        ('Y', 'Yes'),
+        ('N', 'No')
+    )
+
+    # ================= FACILITY =================
     facility = models.ForeignKey(
         "Facility",
         on_delete=models.CASCADE,
@@ -84,15 +87,24 @@ class Refill(models.Model):
         null=True
     )
 
+    # ================= BASIC INFO =================
     unique_id = models.CharField(max_length=100)
     age = models.IntegerField(null=True, blank=True)
     sex = models.CharField(max_length=10, choices=SEX_CHOICES)
+
     last_pickup_date = models.DateField(null=True, blank=True)
     months_of_refill_days = models.DecimalField(max_digits=4, decimal_places=2)
+
     current_regimen = models.CharField(max_length=255)
     case_manager = models.CharField(max_length=255)
     remark = models.TextField(blank=True, null=True)
-    current_art_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Active')
+
+    current_art_status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='Active'
+    )
+
     next_appointment = models.DateField(blank=True, null=True)
     expected_iit_date = models.DateField(blank=True, null=True)
     missed_appointment = models.BooleanField(default=False)
@@ -119,33 +131,62 @@ class Refill(models.Model):
     tb_result_received_date = models.DateField(blank=True, null=True)
     tb_diagnostic_result = models.CharField(max_length=50, choices=TB_RESULT_CHOICES, blank=True, null=True)
 
+    # ================= TRACKING (FIXED ERROR FIELDS) =================
+    tracking_date_1 = models.DateField(null=True, blank=True)
+    tracking_date_2 = models.DateField(null=True, blank=True)
+    tracking_date_3 = models.DateField(null=True, blank=True)
+
+    tracked_by = models.CharField(max_length=100, null=True, blank=True)
+
+    # ================= DISCONTINUATION =================
+    patient_discontinued = models.CharField(
+        max_length=1,
+        choices=YES_NO_CHOICES,
+        null=True,
+        blank=True
+    )
+
+    discontinued_reason = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
+    )
+
+    discontinued_date = models.DateField(null=True, blank=True)
+    returned_date = models.DateField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ================= META =================
     class Meta:
         unique_together = ('facility', 'unique_id')
         ordering = ['-last_pickup_date']
 
-    # ================= AUTO DATES =================
+    # ================= AUTO CALC =================
     def calculate_dates(self):
         if self.last_pickup_date and self.months_of_refill_days:
-            days = float(self.months_of_refill_days) * 30
-            self.next_appointment = self.last_pickup_date + timedelta(days=days)
+            self.next_appointment = self.last_pickup_date + timedelta(
+                days=float(self.months_of_refill_days) * 30
+            )
             self.expected_iit_date = self.next_appointment + timedelta(days=28)
 
     def save(self, *args, **kwargs):
-        today = timezone.now().date()
-
         self.calculate_dates()
 
-        if self.next_appointment and self.next_appointment < today:
+        if self.next_appointment and self.next_appointment < timezone.now().date():
             self.missed_appointment = True
 
         if self.tpt_start_date:
             self.tpt_expected_completion = self.tpt_start_date + timedelta(days=180)
-        else:
-            self.tpt_expected_completion = None
 
         super().save(*args, **kwargs)
+
+    # ================= SAFE DAYS MISSED =================
+    @property
+    def days_missed(self):
+        if not self.next_appointment:
+            return 0
+        return max((timezone.now().date() - self.next_appointment).days, 0)
 
     # ================= VL ELIGIBILITY =================
     @property
@@ -153,31 +194,29 @@ class Refill(models.Model):
         today = timezone.now().date()
         FY_START = date(2025, 10, 1)
 
-        # Must have ART start date
+        if self.current_art_status not in ["Active", "Active Restart", "Restart"]:
+            return False
+
+        if self.patient_discontinued == 'Y':
+            return False
+
+        if self.days_missed >= 28:
+            return False
+
         if not self.art_start_date:
             return False
 
-        # Must be on ART for at least 6 months
         if self.art_start_date + relativedelta(months=6) > today:
             return False
 
-        # If no VL ever done → eligible
         if not self.vl_sample_collection_date:
             return True
 
-        # If VL is before FY → eligible again
-        if self.vl_sample_collection_date < FY_START:
-            return True
+        if self.age is not None and self.age >= 15:
+            return self.vl_sample_collection_date < FY_START
 
-        # ================= FY RULES =================
-
-        # ADULT (>=16 or age > 15)
-        if self.age is None or self.age > 15:
-            return False  # already had VL in FY
-
-        # CHILD (≤15)
-        else:
-            return True  # allow up to 2 per FY (needs VL history table for strict enforcement)
+        months_since = (today - self.vl_sample_collection_date).days / 30
+        return months_since >= 6
 
     # ================= SUPPRESSION =================
     @property
@@ -195,10 +234,9 @@ class Refill(models.Model):
     @property
     def eac(self):
         return (
-            self.vl_result is not None
-            and self.vl_result >= 1000
-            and self.vl_sample_collection_date is not None
-            and self.eac_start_date is None
+            self.vl_result is not None and
+            self.vl_result >= 1000 and
+            self.eac_start_date is None
         )
 
     @property
@@ -207,18 +245,24 @@ class Refill(models.Model):
             return "Not Eligible"
         if self.eac_sessions_completed == 0:
             return "Eligible for 1st EAC"
-        elif self.eac_sessions_completed == 1:
+        if self.eac_sessions_completed == 1:
             return "Eligible for 2nd EAC"
-        elif self.eac_sessions_completed == 2:
+        if self.eac_sessions_completed == 2:
             return "Eligible for 3rd EAC"
         return "Post-EAC VL Due"
-
+    
+    
+    
     @property
     def post_eac_vl_due(self):
+        today = timezone.now().date()
+
         return (
             self.eac_sessions_completed >= 3
             and self.vl_result is not None
             and self.vl_result >= 1000
+            and self.eac_start_date
+            and (today - self.eac_start_date).days >= 90
         )
 
     # ================= TPT =================
@@ -236,53 +280,13 @@ class Refill(models.Model):
 
     # ================= IIT =================
     @property
-    def days_missed(self):
-        if not self.next_appointment:
-            return 0
-        delta = (timezone.now().date() - self.next_appointment).days
-        return max(delta, 0)
-
-    @property
     def iit_status(self):
         if self.days_missed >= 28:
             return "IIT"
-        elif 0 < self.days_missed < 28:
+        if self.days_missed > 0:
             return f"{28 - self.days_missed} days to IIT"
         return "On Track"
 
-    # ================= TRACKING =================
-    tracking_date_1 = models.DateField(null=True, blank=True)
-    tracking_date_2 = models.DateField(null=True, blank=True)
-    tracking_date_3 = models.DateField(null=True, blank=True)
-
-    tracked_by = models.CharField(max_length=100, null=True, blank=True)
-
-    # ================= DISCONTINUATION =================
-    YES_NO_CHOICES = [('Y', 'Yes'), ('N', 'No')]
-
-    patient_discontinued = models.CharField(
-        max_length=1,
-        choices=YES_NO_CHOICES,
-        null=True,
-        blank=True
-    )
-
-    DISCONTINUED_REASONS = [
-        ('Transferred Out', 'Transferred Out'),
-        ('Death', 'Death'),
-    ]
-
-    discontinued_reason = models.CharField(
-        max_length=50,
-        choices=DISCONTINUED_REASONS,
-        null=True,
-        blank=True
-    )
-
-    discontinued_date = models.DateField(null=True, blank=True)
-
-    # ================= RETURNED =================
-    returned_date = models.DateField(null=True, blank=True)
-
+    # ================= STRING =================
     def __str__(self):
         return f"{self.unique_id} - {self.facility.name}"

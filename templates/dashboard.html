@@ -10,13 +10,10 @@
             <select name="facility" id="facility" class="form-select w-auto" onchange="this.form.submit()">
                 <option value="">All Facilities</option>
                 {% for facility in facilities %}
-                    <option value="{{ facility.id }}"
-                        {% if facility.id|stringformat:"s" == selected_facility %}
-                            selected
-                        {% endif %}
-                    >
-                        {{ facility.name }}
-                    </option>
+                <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %} selected
+                    {% endif %}>
+                    {{ facility.name }}
+                </option>
                 {% endfor %}
             </select>
         </form>
@@ -131,29 +128,29 @@
         <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-white bg-primary shadow">
                 <div class="card-body text-center">
-                    <h6>VL Eligible</h6>
+                    <h6>VL Quarter Eligible</h6>
                     <h2>{{ vl_denominator|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
+        <!-- <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-white bg-success shadow">
                 <div class="card-body text-center">
                     <h6>VL Sample Collected</h6>
                     <h2>{{ vl_sample_collected|default:0 }}</h2>
                 </div>
             </div>
-        </div>
+        </div> -->
 
-        <div class="col-12 col-sm-6 col-md-3">
+        <!-- <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-white bg-info shadow">
                 <div class="card-body text-center">
                     <h6>VL Result Received</h6>
                     <h2>{{ vl_result_received|default:0 }}</h2>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <!-- QUARTERLY VL -->
         <div class="col-12 col-sm-6 col-md-3">

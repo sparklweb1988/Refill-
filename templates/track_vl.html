@@ -94,7 +94,7 @@
                     <th>Unique ID</th>
                     <th>VL Date Collected</th>
                     <th>Date Refilled</th>
-                    <th>VL Result</th>
+                    <th>Current Result</th>
                     <th>Case Manager</th>
                 </tr>
             </thead>
@@ -134,7 +134,7 @@
             <div><strong>Date Refilled:</strong> {{ refill.last_pickup_date|default:"-" }}</div>
 
             <div>
-                <strong>VL Result:</strong>
+                <strong>Current Result:</strong>
                 <span class="{% if refill.vl_result and refill.vl_result > 1000 %}text-danger fw-bold{% endif %}">
                     {{ refill.vl_result|default:"-" }}
                 </span>
