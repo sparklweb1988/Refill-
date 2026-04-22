@@ -364,13 +364,9 @@ def upload_excel(request):
     return render(request, 'upload.html', {'form': form})
 
 
-
-
 @login_required
 def dashboard(request):
     today = timezone.now().date()
-
-    # FY_START = date(2025, 10, 1)
 
     # ================= QUARTER LOGIC =================
     if today.month in [1, 2, 3]:
@@ -393,6 +389,7 @@ def dashboard(request):
     facility_id = request.GET.get("facility")
     facilities = Facility.objects.all()
 
+    # ================= TX_CURR (BASE POPULATION) =================
     refills = Refill.objects.filter(
         current_art_status__in=["Active", "Active Restart", "Restart"]
     )
@@ -412,8 +409,9 @@ def dashboard(request):
     post_eac_vl_count = 0
     ahd_count = 0
 
-    eligible_clients = []
-    quarterly_eligible_clients = []
+    # ================= VL POPULATIONS =================
+    vl_population = []
+    quarterly_population = []
 
     # ================= VL METRICS =================
     overall_vl_sample_collected = 0
@@ -422,8 +420,9 @@ def dashboard(request):
     quarterly_vl_sample_collected = 0
     quarterly_vl_result_received = 0
 
-    suppressed_count = 0  # 🔥 FIX: suppression counter
+    suppressed_count = 0
 
+    # ================= TB =================
     tb_screened = 0
     tb_presumptive = 0
     tb_sample_collected = 0
@@ -451,8 +450,10 @@ def dashboard(request):
         # ---------------- APPOINTMENTS ----------------
         if r.next_appointment and month_start <= r.next_appointment <= month_end:
             monthly_expected += 1
+
             if r.next_appointment == today:
                 daily_expected += 1
+
             if today <= r.next_appointment <= week_end:
                 weekly_expected += 1
 
@@ -471,36 +472,41 @@ def dashboard(request):
         if month_start <= r.next_appointment <= month_end and days_missed >= 28:
             iit_total += 1
 
-        # ================= VL ELIGIBILITY (GLOBAL - DO NOT CHANGE) =================
-        if r.is_vl_eligible:
-            eligible_clients.append(r)
-
-        # ================= QUARTERLY ELIGIBILITY =================
+        # ================= VL DENOMINATOR (TX_CURR STANDARD) =================
         if (
-            r.is_vl_eligible and
-            r.next_appointment and
-            quarter_start <= r.next_appointment <= quarter_end
+            r.art_start_date and
+            (today - r.art_start_date).days >= 180 and
+            r.patient_discontinued != "Y"
         ):
-            quarterly_eligible_clients.append(r)
+            vl_population.append(r)
 
-        # ================= OVERALL VL =================
+            # Quarterly VL eligibility (time-based, NOT appointment-based)
+            if r.vl_sample_collection_date:
+                next_due = r.vl_sample_collection_date + relativedelta(
+                    months=r.vl_interval_months
+                )
+
+                if quarter_start <= next_due <= quarter_end:
+                    quarterly_population.append(r)
+
+        # ================= VL SAMPLE COLLECTION =================
         if r.vl_sample_collection_date:
             overall_vl_sample_collected += 1
 
             if quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 quarterly_vl_sample_collected += 1
 
+        # ================= VL RESULT =================
         if r.vl_result is not None:
             overall_vl_result_received += 1
 
-            if r.vl_sample_collection_date and quarter_start <= r.vl_sample_collection_date <= quarter_end:
+            if quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 quarterly_vl_result_received += 1
 
-            # 🔥 FIX: SUPPRESSION COUNT (ONLY VALID RESULTS)
             if r.vl_result < 1000:
                 suppressed_count += 1
 
-        # ---------------- TB ----------------
+        # ================= TB =================
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
             tb_screened += 1
 
@@ -518,28 +524,27 @@ def dashboard(request):
         elif r.tb_diagnostic_result == "Negative":
             tb_negative += 1
 
-    # ================= FINAL CALCULATIONS =================
-    vl_denominator = len(eligible_clients)
-    quarterly_vl_denominator = len(quarterly_eligible_clients)
+    # ================= FINAL VL METRICS =================
+    vl_denominator = len(vl_population)
+    quarterly_vl_denominator = len(quarterly_population)
 
     vl_coverage = (
-        round((quarterly_vl_sample_collected / vl_denominator) * 100, 1)
-        if vl_denominator else 0
+        round((quarterly_vl_sample_collected / quarterly_vl_denominator) * 100, 1)
+        if quarterly_vl_denominator else 0
     )
 
-    # 🔥 FIX: SUPPRESSION RATE (REAL LOGIC)
     vl_suppression_rate = (
         round((suppressed_count / overall_vl_result_received) * 100, 1)
         if overall_vl_result_received else 0
     )
 
-    vl_coverage_gap = max(0, vl_denominator - quarterly_vl_sample_collected)
+    vl_coverage_gap = max(0, quarterly_vl_denominator - quarterly_vl_sample_collected)
 
     return render(request, "dashboard.html", {
         "facilities": facilities,
         "selected_facility": facility_id,
 
-        # ================= CORE =================
+        # ================= APPOINTMENTS =================
         "daily_expected": daily_expected,
         "daily_refills": daily_refills,
         "weekly_expected": weekly_expected,
@@ -547,25 +552,21 @@ def dashboard(request):
         "monthly_missed_total": monthly_missed_total,
         "iit_total": iit_total,
 
-        # ================= VL GLOBAL =================
-        "vl_denominator": vl_denominator,
-        "overall_vl_sample_collected": overall_vl_sample_collected,
-        "overall_vl_result_received": overall_vl_result_received,
-
-        # ================= VL QUARTER =================
-        "quarterly_vl_denominator": quarterly_vl_denominator,
-        "quarter_vl_collected": quarterly_vl_sample_collected,
-        "quarter_vl_result_received": quarterly_vl_result_received,
-
-        # ================= PERFORMANCE =================
-        "vl_coverage": vl_coverage,
-        "vl_coverage_gap": vl_coverage_gap,
-        "vl_suppression_rate": vl_suppression_rate,
-
-        # ================= OTHER PROGRAMS =================
+        # ================= PROGRAM =================
         "eac_count": eac_count,
         "post_eac_vl_count": post_eac_vl_count,
         "ahd_count": ahd_count,
+
+        # ================= VL =================
+        "vl_denominator": vl_denominator,
+        "quarterly_vl_denominator": quarterly_vl_denominator,
+
+        "quarter_vl_collected": quarterly_vl_sample_collected,
+        "quarter_vl_result_received": quarterly_vl_result_received,
+
+        "vl_coverage": vl_coverage,
+        "vl_coverage_gap": vl_coverage_gap,
+        "vl_suppression_rate": vl_suppression_rate,
 
         # ================= TB =================
         "tb_screened": tb_screened,
@@ -576,9 +577,6 @@ def dashboard(request):
         "tb_negative": tb_negative,
     })
 # ================================
-
-
-
 
 @login_required
 def refill_list(request):
@@ -591,7 +589,7 @@ def refill_list(request):
         quarter_start = date(today.year, 1, 1)
         quarter_end = date(today.year, 3, 31)
     elif today.month in [4, 5, 6]:
-        quarter_start = date(today.year, 4, 1)   # APRIL–JUNE ✔️
+        quarter_start = date(today.year, 4, 1)
         quarter_end = date(today.year, 6, 30)
     elif today.month in [7, 8, 9]:
         quarter_start = date(today.year, 7, 1)
@@ -600,6 +598,7 @@ def refill_list(request):
         quarter_start = date(today.year, 10, 1)
         quarter_end = date(today.year, 12, 31)
 
+    # ================= FILTERS =================
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
     start_date = request.GET.get("start_date")
@@ -611,7 +610,6 @@ def refill_list(request):
 
     refills = Refill.objects.all()
 
-    # ================= FILTERS =================
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
 
@@ -640,58 +638,36 @@ def refill_list(request):
         r.missed_appointment = r.days_missed_display > 0
 
         # =====================================================
-        # ✅ VL STATUS (CLEAN LOGIC)
+        # ✅ VL STATUS (TRUTH SOURCE = MODEL PROPERTY)
         # =====================================================
-
-        if not r.art_start_date:
-            r.vl_status = "No ART Start Date"
-
-        elif r.patient_discontinued == "Y":
-            r.vl_status = "Not Eligible (Discontinued)"
-
-        elif r.days_missed_display >= 28:
-            r.vl_status = "Not Eligible (IIT)"
-
-        elif (today - r.art_start_date).days < 180:
-            r.vl_status = "Not Eligible (ART < 6 months)"
-
-        elif not r.vl_sample_collection_date:
-            r.vl_status = "Eligible (No VL Yet)"
-
-        else:
-            # ================= SUPPRESSION LOGIC FIXED =================
-            if r.vl_result is not None and r.vl_result < 1000:
-                r.vl_status = "Suppressed"
-
-            elif r.vl_result is not None and r.vl_result >= 1000:
-                r.vl_status = "Not Suppressed"
-
-            else:
-                r.vl_status = "Result Pending"
+        r.vl_status = "Eligible" if r.is_vl_eligible_program else "Not Eligible"
 
         # =====================================================
-        # ✅ QUARTER VL STATUS
+        # QUARTER VL STATUS (PROGRAM ACCURATE)
         # =====================================================
+        if r.is_vl_eligible_program:
 
-        r.vl_quarter_status = "Not Due"
-
-        if r.is_vl_eligible:
-
+            # never had VL
             if not r.vl_sample_collection_date:
                 r.vl_quarter_status = "Due (No VL Ever)"
 
-            elif not (quarter_start <= r.vl_sample_collection_date <= quarter_end):
-                r.vl_quarter_status = "Due (Outside Quarter)"
+            # sample outside quarter
+            elif r.vl_sample_collection_date < quarter_start:
+                r.vl_quarter_status = "Due (Overdue)"
+
+            # sample inside quarter
+            elif quarter_start <= r.vl_sample_collection_date <= quarter_end:
+                r.vl_quarter_status = "Done This Quarter"
 
             else:
-                r.vl_quarter_status = "Done This Quarter"
+                r.vl_quarter_status = "Pending"
+        else:
+            r.vl_quarter_status = "Not Eligible"
 
     # ================= PERIOD FILTERS =================
     daily_expected = refills.filter(next_appointment=today)
 
-    weekly_expected = refills.filter(
-        next_appointment__range=[today, week_end]
-    )
+    weekly_expected = refills.filter(next_appointment__range=[today, week_end])
 
     monthly_expected = refills.filter(
         next_appointment__year=today.year,
@@ -701,21 +677,15 @@ def refill_list(request):
     periods = [
         {
             "name": "Daily",
-            "page_obj": Paginator(daily_expected, 10).get_page(
-                request.GET.get("daily_page")
-            )
+            "page_obj": Paginator(daily_expected, 10).get_page(request.GET.get("daily_page"))
         },
         {
             "name": "Weekly",
-            "page_obj": Paginator(weekly_expected, 10).get_page(
-                request.GET.get("weekly_page")
-            )
+            "page_obj": Paginator(weekly_expected, 10).get_page(request.GET.get("weekly_page"))
         },
         {
             "name": "Monthly",
-            "page_obj": Paginator(monthly_expected, 10).get_page(
-                request.GET.get("monthly_page")
-            )
+            "page_obj": Paginator(monthly_expected, 10).get_page(request.GET.get("monthly_page"))
         },
     ]
 
@@ -729,9 +699,6 @@ def refill_list(request):
         "search_unique_id": search_unique_id,
         "query_params": request.GET.urlencode(),
     })
-    
-    
-    
     
 def export_refills_to_excel(refills):
 
@@ -1013,9 +980,9 @@ def refill_update(request, pk):
 
 
 
-
 @login_required
 def track_refills(request):
+
     today = timezone.now().date()
 
     facility_id = request.GET.get("facility")
@@ -1075,48 +1042,64 @@ def track_refills(request):
         )
 
         # =====================================================
-        # 🔥 FIXED VL LOGIC (SAFE + CONSISTENT WITH MODEL)
+        # 🔥 STANDARDIZED VL ELIGIBILITY SOURCE
+        # =====================================================
+        vl_eligible = r.is_vl_eligible_program
+
+        # =====================================================
+        # 🧠 SUPPRESSION STATE (CLINICAL LOGIC)
+        # =====================================================
+        is_suppressed = (
+            r.vl_result is not None and r.vl_result < 1000
+        )
+
+        # =====================================================
+        # 🔬 VL STATUS (CLEAN PROGRAM LOGIC)
         # =====================================================
 
-        if not r.art_start_date:
-            r.vl_status = "No ART"
+        if not vl_eligible:
+            if r.patient_discontinued == "Y":
+                r.vl_status = "Not Eligible (Discontinued)"
 
-        elif r.patient_discontinued == "Y":
-            r.vl_status = "Not Eligible (Discontinued)"
+            elif r.days_missed_display >= 28:
+                r.vl_status = "Not Eligible (IIT)"
 
-        elif r.days_missed_display >= 28:
-            r.vl_status = "Not Eligible (IIT)"
-
-        elif r.art_start_date and (today - r.art_start_date).days <= 180:
-            r.vl_status = "Not Eligible (ART < 6 months)"
-
-        elif not r.vl_sample_collection_date:
-            r.vl_status = "Eligible (No VL yet)"
-
-        else:
-            # ================= SUPPRESSION SAFE CHECK =================
-            if r.vl_result is None:
-                r.vl_status = "VL Pending"
-
-            elif r.vl_result < 1000:
-                # UNSUPPRESSED → 3-month repeat rule
-                delta = relativedelta(today, r.vl_sample_collection_date)
-                months_since_vl = delta.years * 12 + delta.months
-
-                if months_since_vl >= 3:
-                    r.vl_status = "Repeat VL Due"
-                else:
-                    r.vl_status = "Awaiting Repeat VL"
+            elif r.art_start_date and (today - r.art_start_date).days < 180:
+                r.vl_status = "Not Eligible (ART < 6 months)"
 
             else:
-                # SUPPRESSED → use model eligibility logic
-                if r.is_vl_eligible:
-                    r.vl_status = "Routine VL Due"
+                r.vl_status = "Not Eligible"
+
+        else:
+            # ================= NEVER HAD VL =================
+            if not r.vl_sample_collection_date:
+                r.vl_status = "Eligible (No VL Yet)"
+
+            # ================= HAS VL =================
+            else:
+
+                if r.vl_result is None:
+                    r.vl_status = "VL Pending"
+
+                elif is_suppressed:
+                    # suppressed clients
+                    delta = relativedelta(today, r.vl_sample_collection_date)
+                    months_since = delta.years * 12 + delta.months
+
+                    if months_since >= 3:
+                        r.vl_status = "Repeat VL Due (Suppressed)"
+                    else:
+                        r.vl_status = "Monitoring Suppressed"
+
                 else:
-                    r.vl_status = "VL Up to Date"
+                    # suppressed NOT
+                    if vl_eligible:
+                        r.vl_status = "Routine VL Due"
+                    else:
+                        r.vl_status = "VL Up to Date"
 
         # =====================================================
-        # 🧾 DISPLAY FIELDS (UNCHANGED)
+        # 🧾 DISPLAY CLEANING (UNCHANGED)
         # =====================================================
         r.age_display = r.age or "-"
 
@@ -1145,8 +1128,6 @@ def track_refills(request):
         "today": today,
         "page_obj": page_obj,
     })
-    
-    
     
 def export_track_refills_to_excel(refills):
     today = timezone.now().date()
@@ -1242,8 +1223,10 @@ def export_all_track_refills_excel(request):
     return export_track_refills_to_excel(refills)
 
 
+
 @login_required
 def daily_refill_list(request):
+
     today = timezone.now().date()
 
     facility_id = request.GET.get("facility")
@@ -1259,18 +1242,27 @@ def daily_refill_list(request):
     if selected_case_manager:
         refills = refills.filter(case_manager=selected_case_manager)
 
-    case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
+    # ================= CLEAN CASE MANAGERS =================
+    case_managers = (
+        Refill.objects
+        .exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
 
-    # ================= LOOP FOR DISPLAY FIELDS =================
+    case_managers = sorted(set(cm.strip() for cm in case_managers if cm))
+
+    # ================= ENRICH OBJECTS =================
     for r in refills:
 
-        # ---------------- AGE DISPLAY ----------------
+        # ---------------- AGE ----------------
         r.age_display = r.age if r.age is not None else "Unknown"
 
-        # ---------------- TB STATUS DISPLAY ----------------
-        r.tb_status_display = r.tb_status if r.tb_status else "Not Recorded"
+        # ---------------- TB ----------------
+        r.tb_status_display = r.tb_status if r.tb_status else "Not Screened"
 
-        # ---------------- DAYS MISSED ----------------
+        # ---------------- MISSED DAYS ----------------
         r.days_missed_display = (
             (today - r.next_appointment).days
             if r.next_appointment and r.next_appointment < today
@@ -1278,57 +1270,59 @@ def daily_refill_list(request):
         )
 
         # =====================================================
-        # 🔥 NEW VL STATUS (BASED ON MODEL LOGIC)
+        # 🔥 SINGLE SOURCE OF TRUTH (PROGRAM VL ELIGIBILITY)
+        # =====================================================
+        vl_eligible = r.is_vl_eligible_program
+
+        # =====================================================
+        # 🧠 SUPPRESSION LOGIC (ONLY RESULT BASED)
+        # =====================================================
+        is_suppressed = (
+            r.vl_result is not None and r.vl_result < 1000
+        )
+
+        # =====================================================
+        # 🔬 CLEAN VL STATUS (PEPFAR STYLE LOGIC)
         # =====================================================
 
-        if r.patient_discontinued == 'Y':
-            r.vl_status_display = "Not Eligible (Discontinued)"
+        if not vl_eligible:
 
-        elif r.days_missed_display >= 28:
-            r.vl_status_display = "Not Eligible (IIT)"
+            if r.patient_discontinued == 'Y':
+                r.vl_status_display = "Not Eligible (Discontinued)"
 
-        elif not r.art_start_date:
-            r.vl_status_display = "No ART"
+            elif r.days_missed_display >= 28:
+                r.vl_status_display = "Not Eligible (IIT)"
 
-        elif (today - r.art_start_date).days <= 180:
-            r.vl_status_display = "Not Eligible (ART < 6 months)"
+            elif r.art_start_date and (today - r.art_start_date).days < 180:
+                r.vl_status_display = "Not Eligible (ART < 6 Months)"
 
-        elif r.is_vl_eligible:
-            if not r.vl_sample_collection_date:
-                r.vl_status_display = "Eligible (No VL yet)"
             else:
-                # differentiate adult vs child timing
-                if r.age is not None and r.age > 15:
-                    r.vl_status_display = "Eligible (Annual VL Due)"
-                else:
-                    r.vl_status_display = "Eligible (6-Month VL Due)"
+                r.vl_status_display = "Not Eligible"
 
         else:
-            # Not eligible → determine why (based on suppression + timing)
-            if r.vl_sample_collection_date:
-                delta = relativedelta(today, r.vl_sample_collection_date)
-                months_since = delta.years * 12 + delta.months
 
-                if r.vl_result is not None and not r.is_suppressed:
-                    if months_since >= 3:
-                        r.vl_status_display = "Repeat VL Due"
-                    else:
-                        r.vl_status_display = "Awaiting Repeat VL"
-                else:
-                    if r.age is not None and r.age <= 15:
-                        r.vl_status_display = "VL Up to Date (Child)"
-                    else:
-                        r.vl_status_display = "VL Up to Date (Adult)"
+            # ================= NO VL HISTORY =================
+            if not r.vl_sample_collection_date:
+                r.vl_status_display = "Eligible (VL Due)"
+
+            # ================= HAS VL =================
             else:
-                r.vl_status_display = "VL Up to Date"
 
-        # ---------------- EAC DISPLAY ----------------
+                if r.vl_result is None:
+                    r.vl_status_display = "VL Pending"
+
+                elif is_suppressed:
+                    r.vl_status_display = "Suppressed (<1000)"
+
+                else:
+                    r.vl_status_display = "Not Suppressed (≥1000)"
+
+        # ================= EAC =================
         r.eac_status_display = r.eac_status
 
-        # ---------------- AHD DISPLAY ----------------
+        # ================= AHD =================
         r.ahd_display = "Eligible" if r.ahd else "Not Eligible"
 
-    # ================= RENDER =================
     return render(request, "daily_refill_list.html", {
         "facilities": facilities,
         "selected_facility": facility_id,
@@ -1339,15 +1333,10 @@ def daily_refill_list(request):
     })
     
     
-    
-    
-    
-    
 @login_required
 def missed_refills(request):
     today = timezone.now().date()
 
-    # ================= GET FILTER PARAMETERS =================
     facility_id = request.GET.get("facility")
     case_manager = request.GET.get("case_manager")
     start_date = request.GET.get("start_date")
@@ -1361,10 +1350,7 @@ def missed_refills(request):
 
     # ================= FILTERS =================
     if facility_id:
-        try:
-            refills = refills.filter(facility_id=int(facility_id))
-        except ValueError:
-            pass
+        refills = refills.filter(facility_id=facility_id)
 
     if case_manager:
         refills = refills.filter(case_manager__iexact=case_manager.strip())
@@ -1372,87 +1358,58 @@ def missed_refills(request):
     if search_unique_id:
         refills = refills.filter(unique_id__icontains=search_unique_id.strip())
 
-    # ================= DATE FILTER =================
     if start_date:
         try:
-            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
-            refills = refills.filter(next_appointment__gte=start_date_obj)
-        except ValueError:
+            refills = refills.filter(next_appointment__gte=start_date)
+        except:
             pass
 
     if end_date:
         try:
-            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
-            refills = refills.filter(next_appointment__lte=end_date_obj)
-        except ValueError:
+            refills = refills.filter(next_appointment__lte=end_date)
+        except:
             pass
 
-    # ================= MISSED REFILLS =================
+    # ================= ONLY MISSED =================
     missed_list = refills.filter(
         next_appointment__lt=today
     ).order_by("next_appointment")
 
-    # ================= MAIN LOOP =================
+    # ================= ENRICH DATA =================
     for r in missed_list:
 
-        # ---------------- DAYS MISSED ----------------
+        # days missed (use model property if available)
         r.days_missed_display = r.days_missed
+
+        # IIT status (already standardized in model)
         r.iit_status_display = r.iit_status
 
         # =====================================================
-        # ✅ VL STATUS (FINAL UNIFIED LOGIC)
+        # ✅ UNIFIED VL LOGIC (PROGRAM STANDARD)
         # =====================================================
 
-        if r.patient_discontinued == 'Y':
-            r.vl_status_display = "Not Eligible (Discontinued)"
-
-        elif r.days_missed >= 28:
-            r.vl_status_display = "Not Eligible (IIT)"
-
-        elif not r.art_start_date:
-            r.vl_status_display = "No ART"
-
-        elif (today - r.art_start_date).days < 180:
-            r.vl_status_display = "Not Eligible (ART < 6 months)"
+        if not r.is_vl_eligible_program:
+            r.vl_status_display = "Not Eligible"
 
         else:
-            # ================= NO VL YET =================
+            # ART eligible population
+
             if not r.vl_sample_collection_date:
-                r.vl_status_display = "Eligible (No VL yet)"
+                r.vl_status_display = "Eligible (No VL Yet)"
 
             else:
-                # ================= SUPPRESSION CHECK =================
-                if r.vl_result is not None and r.vl_result >= 1000:
-                    suppressed = False
-                else:
-                    suppressed = True
+                # Age-based interval rule
+                interval_months = 6 if (r.age and r.age < 15) else 12
 
-                # ================= TIME SINCE LAST VL =================
                 delta_months = (
-                    (today.year - r.vl_sample_collection_date.year) * 12
-                    + (today.month - r.vl_sample_collection_date.month)
+                    (today.year - r.vl_sample_collection_date.year) * 12 +
+                    (today.month - r.vl_sample_collection_date.month)
                 )
 
-                # ================= UNSUPPRESSED =================
-                if not suppressed:
-                    if delta_months >= 3:
-                        r.vl_status_display = "Repeat VL Due"
-                    else:
-                        r.vl_status_display = "Awaiting Repeat VL"
-
-                # ================= SUPPRESSED =================
+                if delta_months >= interval_months:
+                    r.vl_status_display = "Eligible (Due)"
                 else:
-                    if r.age is not None and r.age > 15:
-                        due_months = 12
-                        label = "Annual VL Due"
-                    else:
-                        due_months = 6
-                        label = "6-Month VL Due"
-
-                    if delta_months >= due_months:
-                        r.vl_status_display = f"Eligible ({label})"
-                    else:
-                        r.vl_status_display = "VL Up to Date"
+                    r.vl_status_display = "Not Due"
 
     # ================= PAGINATION =================
     paginator = Paginator(missed_list, 25)
@@ -1467,7 +1424,7 @@ def missed_refills(request):
         .distinct()
     )
 
-    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm})
 
     query_params = request.GET.copy()
     query_params.pop("page", None)
@@ -1488,6 +1445,7 @@ def missed_refills(request):
 
         "query_params": query_params.urlencode(),
     })
+    
     
     
     
@@ -1524,62 +1482,61 @@ def track_vl(request):
         )
 
         # =====================================================
-        # ✅ UNIFIED VL LOGIC (FINAL VERSION)
+        # ✅ NEW UNIFIED VL LOGIC (MODEL-DRIVEN)
         # =====================================================
 
-        # 1. Discontinued
-        if r.patient_discontinued == 'Y':
-            r.vl_status = "Not Eligible (Discontinued)"
+        # 1. NOT ELIGIBLE BASED ON PROGRAM RULES
+        if not r.is_vl_eligible_program:
+            if r.patient_discontinued == 'Y':
+                r.vl_status = "Not Eligible (Discontinued)"
+            elif r.days_missed_display >= 28:
+                r.vl_status = "Not Eligible (IIT)"
+            elif not r.art_start_date:
+                r.vl_status = "No ART"
+            elif (today - r.art_start_date).days < 180:
+                r.vl_status = "Not Eligible (ART < 6 months)"
+            else:
+                r.vl_status = "Not Eligible"
 
-        # 2. IIT
-        elif r.days_missed_display >= 28:
-            r.vl_status = "Not Eligible (IIT)"
-
-        # 3. No ART
-        elif not r.art_start_date:
-            r.vl_status = "No ART"
-
-        # 4. ART < 6 months
-        elif (today - r.art_start_date).days < 180:
-            r.vl_status = "Not Eligible (ART < 6 months)"
-
+        # 2. ELIGIBLE CLIENTS
         else:
+
             # ================= NO VL YET =================
             if not r.vl_sample_collection_date:
-                r.vl_status = "Eligible (No VL yet)"
+                r.vl_status = "Eligible (VL Due)"
 
             else:
-                # ================= SUPPRESSION CHECK =================
-                suppressed = not (
-                    r.vl_result is not None and r.vl_result >= 1000
-                )
 
-                # ================= TIME SINCE LAST VL =================
+                # ================= SUPPRESSION CHECK =================
+                is_suppressed = r.is_suppressed
+
+                # ================= MONTH DIFFERENCE =================
                 delta_months = (
                     (today.year - r.vl_sample_collection_date.year) * 12
                     + (today.month - r.vl_sample_collection_date.month)
                 )
 
                 # ================= UNSUPPRESSED =================
-                if not suppressed:
+                if is_suppressed is False:
+
+                    # WHO STANDARD: repeat VL after 3 months
                     if delta_months >= 3:
                         r.vl_status = "Repeat VL Due"
                     else:
                         r.vl_status = "Awaiting Repeat VL"
 
                 # ================= SUPPRESSED =================
-                else:
-                    if r.age is not None and r.age > 15:
-                        due_months = 12
-                        label = "Annual VL Due"
-                    else:
-                        due_months = 6
-                        label = "6-Month VL Due"
+                elif is_suppressed is True:
 
-                    if delta_months >= due_months:
-                        r.vl_status = f"Eligible ({label})"
+                    interval = 12 if (r.age and r.age > 15) else 6
+
+                    if delta_months >= interval:
+                        r.vl_status = f"Eligible ({interval}-Month VL Due)"
                     else:
                         r.vl_status = "VL Up to Date"
+
+                else:
+                    r.vl_status = "VL Result Pending"
 
     # ================= EXPORT =================
     if "download" in request.GET:
@@ -1597,6 +1554,8 @@ def track_vl(request):
         "vl_refills": vl_refills,
         "today": today,
     })
+    
+    
     
     
     

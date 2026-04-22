@@ -121,46 +121,16 @@
     <td>{{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ r.next_appointment|date:"Y-m-d" }}</td>
 
-    <!-- ================= VL STATUS (UPDATED LOGIC) ================= -->
+    <!-- ================= VL STATUS (SIMPLIFIED) ================= -->
     <td>
-        {% if r.vl_sample_collection_date %}
-
-            {% if r.is_suppressed is not None %}
-
-                {% if r.is_suppressed %}
-
-                    {% if r.age and r.age > 15 %}
-                        <span class="badge bg-success">Suppressed (Annual)</span>
-                    {% else %}
-                        <span class="badge bg-success">Suppressed (6-Month)</span>
-                    {% endif %}
-
-                {% else %}
-                    <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-                {% endif %}
-
-            {% else %}
-                <span class="badge bg-warning text-dark">Result Pending</span>
-            {% endif %}
-
+        {% if r.is_vl_eligible %}
+            <span class="badge bg-success">Eligible</span>
         {% else %}
-
-            {% if r.is_vl_eligible %}
-
-                {% if r.age and r.age > 15 %}
-                    <span class="badge bg-primary">Eligible (Annual VL)</span>
-                {% else %}
-                    <span class="badge bg-primary">Eligible (6-Month VL)</span>
-                {% endif %}
-
-            {% else %}
-                <span class="badge bg-secondary">Not Due</span>
-            {% endif %}
-
+            <span class="badge bg-secondary">Not Eligible</span>
         {% endif %}
     </td>
 
-    <!-- VL RESULT -->
+    <!-- VL RESULT (UNCHANGED) -->
     <td>
         {% if r.vl_result %}
             {% if r.is_suppressed %}
@@ -207,31 +177,13 @@
   <div><strong>Refill Date:</strong> {{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</div>
   <div><strong>Next:</strong> {{ r.next_appointment|date:"Y-m-d" }}</div>
 
-  <!-- VL -->
+  <!-- ================= VL STATUS (SIMPLIFIED) ================= -->
   <div><strong>VL Status:</strong>
 
-      {% if r.vl_sample_collection_date %}
-
-          {% if r.is_suppressed %}
-
-              {% if r.age and r.age > 15 %}
-                  Suppressed (Annual)
-              {% else %}
-                  Suppressed (6-Month)
-              {% endif %}
-
-          {% else %}
-              Not Suppressed (≥1000)
-          {% endif %}
-
+      {% if r.is_vl_eligible %}
+          <span class="text-success">Eligible</span>
       {% else %}
-
-          {% if r.is_vl_eligible %}
-              Eligible
-          {% else %}
-              Not Due
-          {% endif %}
-
+          <span class="text-secondary">Not Eligible</span>
       {% endif %}
 
   </div>

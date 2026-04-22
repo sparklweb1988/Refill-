@@ -87,53 +87,13 @@
             <td>{{ refill.case_manager }}</td>
             <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
 
-            <!-- ================= VL (FULL LOGIC UPDATED) ================= -->
+            <!-- ================= CLEAN VL STATUS ================= -->
             <td>
-
-              {% if refill.vl_sample_collection_date %}
-
-                  {% if refill.is_suppressed is not None %}
-
-                      {% if refill.is_suppressed %}
-
-                          {% if refill.age and refill.age > 15 %}
-                              <span class="badge bg-success">Suppressed (Annual)</span>
-                          {% else %}
-                              <span class="badge bg-success">Suppressed (6-Month)</span>
-                          {% endif %}
-
-                      {% else %}
-
-                          {% if refill.vl_status == "Repeat VL Due" %}
-                              <span class="badge bg-danger">Repeat VL Due</span>
-                          {% else %}
-                              <span class="badge bg-warning text-dark">
-                                  Not Suppressed (≥1000)
-                              </span>
-                          {% endif %}
-
-                      {% endif %}
-
-                  {% else %}
-                      <span class="badge bg-secondary">Result Pending</span>
-                  {% endif %}
-
+              {% if refill.is_vl_eligible %}
+                  <span class="badge bg-success">Eligible</span>
               {% else %}
-
-                  {% if refill.is_vl_eligible %}
-
-                      {% if refill.age and refill.age > 15 %}
-                          <span class="badge bg-primary">Eligible (Annual VL)</span>
-                      {% else %}
-                          <span class="badge bg-primary">Eligible (6-Month VL)</span>
-                      {% endif %}
-
-                  {% else %}
-                      <span class="badge bg-secondary">Not Due</span>
-                  {% endif %}
-
+                  <span class="badge bg-secondary">Not Eligible</span>
               {% endif %}
-
             </td>
 
             <!-- EAC -->
@@ -198,38 +158,13 @@
           <p><strong>Case Manager:</strong> {{ refill.case_manager }}</p>
           <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
 
+          <!-- ================= CLEAN VL STATUS MOBILE ================= -->
           <p><strong>VL Status:</strong>
-
-            {% if refill.vl_sample_collection_date %}
-
-                {% if refill.is_suppressed %}
-
-                    {% if refill.age and refill.age > 15 %}
-                        Suppressed (Annual)
-                    {% else %}
-                        Suppressed (6-Month)
-                    {% endif %}
-
-                {% else %}
-
-                    {% if refill.vl_status == "Repeat VL Due" %}
-                        Repeat VL Due
-                    {% else %}
-                        Not Suppressed (≥1000)
-                    {% endif %}
-
-                {% endif %}
-
+            {% if refill.is_vl_eligible %}
+                <span class="text-success">Eligible</span>
             {% else %}
-
-                {% if refill.is_vl_eligible %}
-                    Eligible (No VL yet)
-                {% else %}
-                    Not Due
-                {% endif %}
-
+                <span class="text-secondary">Not Eligible</span>
             {% endif %}
-
           </p>
 
           <p><strong>TB Status:</strong> {{ refill.get_tb_status_display|default:"-" }}</p>

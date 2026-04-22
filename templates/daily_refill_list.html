@@ -81,7 +81,9 @@
       {% elif refill.days_missed_display > 0 %} overdue
       {% else %} bg-light
       {% endif %} refill-card">
+
     <div class="card-body">
+
       <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
       <small>Age: {{ refill.age_display }}</small>
       <small>Sex: {{ refill.sex }}</small>
@@ -93,23 +95,36 @@
 
       <!-- TB / VL / EAC / AHD / TPT -->
       <small>TB Status: {{ refill.tb_status_display }}</small>
-      <small>VL Status: {{ refill.vl_status_display }}</small>
-      <small>EAC Status: {% if refill.eac %}{% if refill.post_eac_vl_due_display %}Post-EAC VL
-        Due{% else %}{{ refill.eac_status_display }}{% endif %}{% else %}Not Eligible{% endif %}</small>
+
+      <!-- ================= FIXED VL ================= -->
+      <small>
+        VL Status:
+        {% if refill.is_vl_eligible %}
+            {% if refill.is_suppressed %}
+                <span class="badge bg-success">Suppressed (&lt;1000)</span>
+            {% else %}
+                <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+            {% endif %}
+        {% else %}
+            <span class="badge bg-secondary">Not Eligible</span>
+        {% endif %}
+      </small>
+
+      <small>
+        EAC Status:
+        {% if refill.eac %}
+          {% if refill.post_eac_vl_due_display %}
+            Post-EAC VL Due
+          {% else %}
+            {{ refill.eac_status_display }}
+          {% endif %}
+        {% else %}
+          Not Eligible
+        {% endif %}
+      </small>
+
       <small>AHD Status: {{ refill.ahd_display }}</small>
       <small>TPT Status: {{ refill.tpt_status }}</small>
-
-      <!-- ================= NEW FIELDS ================= -->
-      <!-- <small>Tracking Attempt 1: {{ refill.tracking_date_1|date:"Y-m-d"|default:"-" }}</small>
-      <small>Tracking Attempt 2: {{ refill.tracking_date_2|date:"Y-m-d"|default:"-" }}</small>
-      <small>Tracking Attempt 3: {{ refill.tracking_date_3|date:"Y-m-d"|default:"-" }}</small>
-      <small>Tracked By: {{ refill.tracked_by|default:"-" }}</small>
-      <small>Patient Discontinued?: {{ refill.patient_discontinued|yesno:"Yes,No" }}</small>
-      <small>Date Discontinued: {{ refill.discontinued_date|date:"Y-m-d"|default:"-" }}</small>
-      <small>Date Returned: {{ refill.returned_date|date:"Y-m-d"|default:"-" }}</small>
-      <small>Reason Discontinued: {{ refill.discontinued_reason|default:"-" }}</small>
-      <small>Reason Missed Appointment: {{ refill.remark|default:"-" }}</small>
-      <small>Others / Remarks: {{ refill.others|default:"-" }}</small> -->
 
       <!-- BADGES -->
       {% if refill.days_missed_display > 0 %}
@@ -119,8 +134,9 @@
       <span class="badge bg-warning text-dark">Discontinued</span>
       {% endif %}
 
-      <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm mt-2">Manage
-        Refill</a>
+      <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}"
+         class="btn btn-primary btn-sm mt-2">Manage Refill</a>
+
     </div>
   </div>
   {% empty %}
@@ -135,6 +151,7 @@
 <!-- ================= DESKTOP VIEW: TABLES ================= -->
 <div class="d-none d-md-block">
   <h3>Add Refills ({{ refills.count }})</h3>
+
   <div class="table-responsive">
     <table class="table table-striped table-bordered">
       <thead class="table-dark">
@@ -153,26 +170,16 @@
           <th>EAC Status</th>
           <th>AHD Eligibility</th>
           <th>TPT Status</th>
-
-          <!-- NEW COLUMNS -->
-          <!-- <th>Tracking 1</th>
-          <th>Tracking 2</th>
-          <th>Tracking 3</th>
-          <th>Tracked By</th>
-          <th>Discontinued?</th>
-          <th>Date Discontinued</th>
-          <th>Date Returned</th>
-          <th>Reason Discontinued</th>
-          <th>Reason Missed Appointment</th>
-          <th>Others / Remarks</th> -->
-
           <th>Actions</th>
         </tr>
       </thead>
+
       <tbody>
         {% for refill in refills %}
-        <tr {% if refill.patient_discontinued %} class="discontinued" {% elif refill.days_missed_display > 0 %}
-          class="overdue" {% endif %}>
+        <tr {% if refill.patient_discontinued %} class="discontinued"
+            {% elif refill.days_missed_display > 0 %} class="overdue"
+            {% endif %}>
+
           <td>{{ refill.unique_id }}</td>
           <td>{{ refill.age_display }}</td>
           <td>{{ refill.sex }}</td>
@@ -182,39 +189,52 @@
           <td>{{ refill.next_appointment }}</td>
           <td>{{ refill.current_regimen }}</td>
           <td>{{ refill.case_manager }}</td>
+
           <td>{{ refill.tb_status_display }}</td>
-          <td>{{ refill.vl_status_display }}</td>
-          <td>{% if refill.eac %}{% if refill.post_eac_vl_due_display %}Post-EAC VL
-            Due{% else %}{{ refill.eac_status_display }}{% endif %}{% else %}Not Eligible{% endif %}</td>
+
+          <!-- ================= FIXED VL ================= -->
+          <td>
+            {% if refill.is_vl_eligible %}
+                {% if refill.is_suppressed %}
+                    <span class="badge bg-success">Suppressed (&lt;1000)</span>
+                {% else %}
+                    <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+                {% endif %}
+            {% else %}
+                <span class="badge bg-secondary">Not Eligible</span>
+            {% endif %}
+          </td>
+
+          <td>
+            {% if refill.eac %}
+              {% if refill.post_eac_vl_due_display %}
+                Post-EAC VL Due
+              {% else %}
+                {{ refill.eac_status_display }}
+              {% endif %}
+            {% else %}
+              Not Eligible
+            {% endif %}
+          </td>
+
           <td>{{ refill.ahd_display }}</td>
           <td>{{ refill.tpt_status }}</td>
 
-          <!-- NEW FIELDS -->
-          <!-- <td>{{ refill.tracking_date_1|date:"Y-m-d"|default:"-" }}</td>
-          <td>{{ refill.tracking_date_2|date:"Y-m-d"|default:"-" }}</td>
-          <td>{{ refill.tracking_date_3|date:"Y-m-d"|default:"-" }}</td>
-          <td>{{ refill.tracked_by|default:"-" }}</td>
-          <td>{{ refill.patient_discontinued|yesno:"Yes,No" }}</td>
-          <td>{{ refill.discontinued_date|date:"Y-m-d"|default:"-" }}</td>
-          <td>{{ refill.returned_date|date:"Y-m-d"|default:"-" }}</td>
-          <td>{{ refill.discontinued_reason|default:"-" }}</td>
-          <td>{{ refill.remark|default:"-" }}</td>
-          <td>{{ refill.others|default:"-" }}</td> -->
-
           <td>
             {% if refill.days_missed_display > 0 %}
-            <span class="badge bg-danger">Missed Appointment</span><br>
+              <span class="badge bg-danger">Missed</span><br>
             {% endif %}
             {% if refill.patient_discontinued %}
-            <span class="badge bg-warning text-dark">Discontinued</span><br>
+              <span class="badge bg-warning text-dark">Discontinued</span><br>
             {% endif %}
-            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-primary btn-sm">Manage
-              Refill</a>
+            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}"
+               class="btn btn-primary btn-sm">Manage</a>
           </td>
+
         </tr>
         {% empty %}
         <tr>
-          <td colspan="25" class="text-center">No daily refills today</td>
+          <td colspan="15" class="text-center">No daily refills today</td>
         </tr>
         {% endfor %}
       </tbody>

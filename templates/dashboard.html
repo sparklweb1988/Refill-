@@ -10,8 +10,8 @@
             <select name="facility" id="facility" class="form-select w-auto" onchange="this.form.submit()">
                 <option value="">All Facilities</option>
                 {% for facility in facilities %}
-                <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %} selected
-                    {% endif %}>
+                <option value="{{ facility.id }}"
+                    {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
                     {{ facility.name }}
                 </option>
                 {% endfor %}
@@ -22,74 +22,75 @@
     <!-- ================= DASHBOARD CARDS ================= -->
     <div class="row g-3">
 
-        <!-- EXPECTED / REFILLS -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-primary shadow">
-                <div class="card-body text-center">
+        <!-- REFILLS -->
+        <div class="col-md-3">
+            <div class="card text-white bg-primary shadow text-center">
+                <div class="card-body">
                     <h6>Today's Expected</h6>
                     <h2>{{ daily_expected|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-success shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-white bg-success shadow text-center">
+                <div class="card-body">
                     <h6>Today's Refill</h6>
                     <h2>{{ daily_refills|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-info shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-white bg-info shadow text-center">
+                <div class="card-body">
                     <h6>Weekly Expected</h6>
                     <h2>{{ weekly_expected|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-dark bg-warning shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-dark bg-warning shadow text-center">
+                <div class="card-body">
                     <h6>Monthly Expected</h6>
                     <h2>{{ monthly_expected|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <!-- MISSED / IIT / PROGRAM -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-danger shadow">
-                <div class="card-body text-center">
+        <!-- MISSED / IIT -->
+        <div class="col-md-3">
+            <div class="card text-white bg-danger shadow text-center">
+                <div class="card-body">
                     <h6>Missed This Month</h6>
                     <h2>{{ monthly_missed_total|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-dark shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-white bg-dark shadow text-center">
+                <div class="card-body">
                     <h6>IIT (≥28 Days)</h6>
                     <h2>{{ iit_total|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-danger shadow">
-                <div class="card-body text-center">
-                    <h6>Restart</h6>
+        <!-- PROGRAM INDICATORS -->
+        <div class="col-md-3">
+            <div class="card text-white bg-danger shadow text-center">
+                <div class="card-body">
+                    <h6>AHD (Restart Cases)</h6>
                     <h2>{{ ahd_count|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-dark bg-warning shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-dark bg-warning shadow text-center">
+                <div class="card-body">
                     <h6>EAC Eligible</h6>
                     <h2>{{ eac_count|default:0 }}</h2>
                 </div>
@@ -98,148 +99,116 @@
 
         <!-- ================= VL SECTION ================= -->
 
-        <!-- GLOBAL ELIGIBILITY -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-primary shadow">
-                <div class="card-body text-center">
-                    <h6>VL Eligible (All Time)</h6>
+        <div class="col-md-3">
+            <div class="card text-white bg-primary shadow text-center">
+                <div class="card-body">
+                    <h6>VL Program Population (All Time)</h6>
                     <h2>{{ vl_denominator|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <!-- QUARTER ELIGIBLE (NEW) -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-secondary shadow">
-                <div class="card-body text-center">
-                    <h6>VL Eligible (Quarter)</h6>
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary shadow text-center">
+                <div class="card-body">
+                    <h6>VL Program Population (Quarter)</h6>
                     <h2>{{ quarterly_vl_denominator|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <!-- QUARTER ACTIVITY -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-primary shadow">
-                <div class="card-body text-center">
-                    <h6>VL Sample Collected (Quarter)</h6>
+        <div class="col-md-3">
+            <div class="card text-white bg-primary shadow text-center">
+                <div class="card-body">
+                    <h6>VL Samples (Quarter)</h6>
                     <h2>{{ quarter_vl_collected|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-info shadow">
-                <div class="card-body text-center">
-                    <h6>VL Result Received (Quarter)</h6>
+        <div class="col-md-3">
+            <div class="card text-white bg-info shadow text-center">
+                <div class="card-body">
+                    <h6>VL Results (Quarter)</h6>
                     <h2>{{ quarter_vl_result_received|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <!-- OVERALL ACTIVITY (NEW) -->
-        <!-- <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-dark bg-success shadow">
-                <div class="card-body text-center">
-                    <h6>VL Sample Collected (Total)</h6>
-                    <h2>{{ overall_vl_sample_collected|default:0 }}</h2>
-                </div>
-            </div>
-        </div> -->
-
-        <!-- <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-dark bg-info shadow">
-                <div class="card-body text-center">
-                    <h6>VL Result Received (Total)</h6>
-                    <h2>{{ overall_vl_result_received|default:0 }}</h2>
-                </div>
-            </div>
-        </div> -->
-
-        <!-- PERFORMANCE -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-dark bg-success shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-dark bg-success shadow text-center">
+                <div class="card-body">
                     <h6>VL Coverage %</h6>
-                    <h2>{{ vl_coverage|default:0 }}</h2>
+                    <h2>{{ vl_coverage|default:0 }}%</h2>
                 </div>
             </div>
         </div>
 
-        <!-- <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-dark bg-secondary shadow">
-                <div class="card-body text-center">
-                    <h6>VL Coverage Gap</h6>
-                    <h2>{{ vl_coverage_gap|default:0 }}</h2>
-                </div>
-            </div>
-        </div> -->
-
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-info shadow">
-                <div class="card-body text-center">
+        <div class="col-md-3">
+            <div class="card text-white bg-info shadow text-center">
+                <div class="card-body">
                     <h6>VL Suppression %</h6>
-                    <h2>{{ vl_suppression_rate|default:0 }}</h2>
+                    <h2>{{ vl_suppression_rate|default:0 }}%</h2>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- ================= TB SECTION ================= -->
+    <!-- ================= TB ================= -->
     <div class="mt-5">
         <h4 class="mb-3">TB Cascade</h4>
 
         <div class="row g-3">
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card text-white bg-primary shadow">
-                    <div class="card-body text-center">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary text-center shadow">
+                    <div class="card-body">
                         <h6>TB Screened</h6>
                         <h2>{{ tb_screened|default:0 }}</h2>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card text-dark bg-warning shadow">
-                    <div class="card-body text-center">
+            <div class="col-md-3">
+                <div class="card text-dark bg-warning text-center shadow">
+                    <div class="card-body">
                         <h6>Presumptive TB</h6>
                         <h2>{{ tb_presumptive|default:0 }}</h2>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card text-white bg-info shadow">
-                    <div class="card-body text-center">
-                        <h6>TB Sample Collected</h6>
+            <div class="col-md-3">
+                <div class="card text-white bg-info text-center shadow">
+                    <div class="card-body">
+                        <h6>TB Samples Collected</h6>
                         <h2>{{ tb_sample_collected|default:0 }}</h2>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card text-white bg-secondary shadow">
-                    <div class="card-body text-center">
-                        <h6>TB Result Received</h6>
+            <div class="col-md-3">
+                <div class="card text-white bg-secondary text-center shadow">
+                    <div class="card-body">
+                        <h6>TB Results Received</h6>
                         <h2>{{ tb_result_received|default:0 }}</h2>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card text-white bg-danger shadow">
-                    <div class="card-body text-center">
+            <div class="col-md-3">
+                <div class="card text-white bg-danger text-center shadow">
+                    <div class="card-body">
                         <h6>TB Positive</h6>
                         <h2>{{ tb_positive|default:0 }}</h2>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card text-white bg-success shadow">
-                    <div class="card-body text-center">
+            <div class="col-md-3">
+                <div class="card text-white bg-success text-center shadow">
+                    <div class="card-body">
                         <h6>TB Negative</h6>
                         <h2>{{ tb_negative|default:0 }}</h2>
                     </div>

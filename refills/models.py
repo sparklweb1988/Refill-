@@ -188,48 +188,55 @@ class Refill(models.Model):
     # ================= AGE-BASED VL INTERVAL =================
     @property
     def vl_interval_months(self):
-        if self.age is None:
-            return 12
-        return 6 if self.age <= 15 else 12
+        return 6 if self.age is not None and self.age < 15 else 12
 
-    # ================= CLEAN VL ELIGIBILITY (FIXED) =================
+    # ================= FIXED VL ELIGIBILITY =================
     @property
-    def is_vl_eligible(self):
+    def is_vl_eligible_program(self):
         today = timezone.now().date()
 
+        # TX_CURR ONLY
         if self.current_art_status not in ["Active", "Active Restart", "Restart"]:
             return False
 
         if self.patient_discontinued == 'Y':
             return False
 
-        if self.days_missed >= 28:
-            return False
-
+        # ART ≥ 6 MONTHS
         if not self.art_start_date:
             return False
 
         if (today - self.art_start_date).days < 180:
             return False
 
-        return True
+        july_cutoff = date(2025, 7, 1)
+        april_cutoff = date(2025, 4, 1)
 
-    # ================= VL DUE (NEW LOGIC BASED ON AGE) =================
-    @property
-    def is_vl_due(self):
-        today = timezone.now().date()
-
-        if not self.is_vl_eligible:
-            return False
-
+        # NO VL HISTORY → eligible
         if not self.vl_sample_collection_date:
             return True
 
+        # EXCLUDE RECENT SAMPLES (JULY 2025+)
+        if self.vl_sample_collection_date >= july_cutoff:
+
+            # KEEP IF RESULT MISSING FROM APRIL 2025
+            if (
+                self.vl_result is None and
+                self.vl_sample_collection_date >= april_cutoff
+            ):
+                return True
+
+            return False
+
+        # AGE-BASED VL SCHEDULE
         next_due = self.vl_sample_collection_date + relativedelta(
             months=self.vl_interval_months
         )
 
-        return today >= next_due
+        if today < next_due:
+            return False
+
+        return True
 
     # ================= SUPPRESSION =================
     @property
@@ -264,18 +271,6 @@ class Refill(models.Model):
             return "Eligible for 3rd EAC"
         return "Post-EAC VL Due"
 
-    @property
-    def post_eac_vl_due(self):
-        today = timezone.now().date()
-
-        return (
-            self.eac_sessions_completed >= 3
-            and self.vl_result is not None
-            and self.vl_result >= 1000
-            and self.eac_start_date
-            and (today - self.eac_start_date).days >= 90
-        )
-
     # ================= TPT =================
     @property
     def tpt_status(self):
@@ -298,6 +293,5 @@ class Refill(models.Model):
             return f"{28 - self.days_missed} days to IIT"
         return "On Track"
 
-    # ================= STRING =================
     def __str__(self):
         return f"{self.unique_id} - {self.facility.name}"

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+
 {% block content %}
 
 <div class="container mt-4">
@@ -6,25 +7,49 @@
         <div class="col-lg-10">
 
             <div class="card shadow-sm border-0">
+
+                <!-- HEADER -->
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        {% if form.instance.pk %}Update Refill Record{% else %}Add New Refill{% endif %}
+                        {% if form.instance.pk %}
+                            Update Refill Record
+                        {% else %}
+                            Add New Refill
+                        {% endif %}
                     </h5>
                 </div>
 
                 <div class="card-body">
+
                     <form method="post">
                         {% csrf_token %}
 
-                        <!-- ================= PATIENT ================= -->
+                        <!-- ================= PATIENT INFO ================= -->
                         <div class="card mb-3">
                             <div class="card-header bg-light">Patient Information</div>
                             <div class="card-body">
                                 <div class="row g-3">
-                                    <div class="col-md-6">{{ form.facility.label_tag }} {{ form.facility }}</div>
-                                    <div class="col-md-6">{{ form.unique_id.label_tag }} {{ form.unique_id }}</div>
-                                    <div class="col-md-6">{{ form.age.label_tag }} {{ form.age }}</div>
-                                    <div class="col-md-6">{{ form.sex.label_tag }} {{ form.sex }}</div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Facility</label>
+                                        {{ form.facility }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Unique ID</label>
+                                        {{ form.unique_id }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Age</label>
+                                        {{ form.age }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Sex</label>
+                                        {{ form.sex }}
+                                    </div>
+
                                 </div>
                             </div>
                         </div>
@@ -35,41 +60,93 @@
                             <div class="card-body">
                                 <div class="row g-3">
 
-                                    <div class="col-md-6">
-                                        {{ form.art_start_date.label_tag }} {{ form.art_start_date }}
+                                    <div class="col-md-4">
+                                        <label class="form-label">ART Start Date</label>
+                                        {{ form.art_start_date }}
                                     </div>
 
-                                    <div class="col-md-6">
-                                        {{ form.vl_sample_collection_date.label_tag }} {{ form.vl_sample_collection_date }}
+                                    <div class="col-md-4">
+                                        <label class="form-label">VL Sample Date</label>
+                                        {{ form.vl_sample_collection_date }}
                                     </div>
 
-                                    <div class="col-md-6">
-                                        {{ form.vl_result.label_tag }} {{ form.vl_result }}
+                                    <div class="col-md-4">
+                                        <label class="form-label">VL Result</label>
+                                        {{ form.vl_result }}
                                     </div>
 
-                                    <!-- ================= VL ELIGIBILITY (MODEL DRIVEN) ================= -->
+                                    <!-- ================= FIXED VL ELIGIBILITY ================= -->
                                     <div class="col-md-6">
-                                        <label class="form-label">VL Eligibility Status</label><br>
-                                        <span class="badge bg-info text-dark">
-                                            {{ form.instance.vl_status|default:"Not Eligible" }}
-                                        </span>
+                                        <label class="form-label">VL Eligibility</label><br>
+
+                                        {% if form.instance.is_vl_eligible %}
+                                            <span class="badge bg-success">Eligible</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not Eligible</span>
+                                        {% endif %}
                                     </div>
 
-                                    <!-- ================= SUPPRESSION (NEW LOGIC) ================= -->
+                                    <!-- ================= FIXED VL SUPPRESSION ================= -->
                                     <div class="col-md-6">
-                                        <label class="form-label">Viral Load Suppression</label><br>
+                                        <label class="form-label">VL Suppression</label><br>
 
                                         {% if form.instance.vl_result is not None %}
 
                                             {% if form.instance.is_suppressed %}
-                                                <span class="badge bg-success">Suppressed (&lt;1000)</span>
+                                                <span class="badge bg-success">
+                                                    Suppressed (&lt;1000)
+                                                </span>
                                             {% else %}
-                                                <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+                                                <span class="badge bg-danger">
+                                                    Not Suppressed (≥1000)
+                                                </span>
                                             {% endif %}
 
                                         {% else %}
-                                            <span class="badge bg-warning text-dark">No VL Result</span>
+                                            <span class="badge bg-warning text-dark">
+                                                No Result
+                                            </span>
                                         {% endif %}
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= TB SECTION ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">TB Cascade</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">TB Screening Date</label>
+                                        {{ form.tb_screening_date }}
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">TB Screening Type</label>
+                                        {{ form.tb_screening_type }}
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">TB Status</label>
+                                        {{ form.tb_status }}
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">TB Sample Collected</label>
+                                        {{ form.tb_sample_collection_date }}
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">TB Result Date</label>
+                                        {{ form.tb_result_received_date }}
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">TB Diagnosis</label>
+                                        {{ form.tb_diagnostic_result }}
                                     </div>
 
                                 </div>
@@ -78,79 +155,29 @@
 
                         <!-- ================= REFILL ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">Refill & Case Info</div>
+                            <div class="card-header bg-light">Refill Information</div>
                             <div class="card-body">
                                 <div class="row g-3">
 
                                     <div class="col-md-6">
-                                        {{ form.last_pickup_date.label_tag }} {{ form.last_pickup_date }}
+                                        <label class="form-label">Last Pickup Date</label>
+                                        {{ form.last_pickup_date }}
                                     </div>
 
                                     <div class="col-md-6">
-                                        {{ form.months_of_refill_days.label_tag }} {{ form.months_of_refill_days }}
+                                        <label class="form-label">Months of Refill</label>
+                                        {{ form.months_of_refill_days }}
                                     </div>
 
                                     <div class="col-md-6">
-                                        {{ form.current_regimen.label_tag }} {{ form.current_regimen }}
+                                        <label class="form-label">Current Regimen</label>
+                                        {{ form.current_regimen }}
                                     </div>
 
                                     <div class="col-md-6">
-                                        {{ form.case_manager.label_tag }} {{ form.case_manager }}
+                                        <label class="form-label">Case Manager</label>
+                                        {{ form.case_manager }}
                                     </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">Next Appointment</label>
-                                        <input type="text" class="form-control"
-                                               value="{{ form.instance.next_appointment|date:'Y-m-d' }}" readonly>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ================= TPT ================= -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">TPT</div>
-                            <div class="card-body">
-                                <div class="row g-3">
-
-                                    <div class="col-md-6">
-                                        {{ form.tpt_start_date.label_tag }} {{ form.tpt_start_date }}
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        {{ form.tpt_completion_date.label_tag }} {{ form.tpt_completion_date }}
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">TPT Status</label><br>
-                                        {% if form.instance.tpt_status == "Completed" %}
-                                            <span class="badge bg-success">Completed</span>
-                                        {% elif form.instance.tpt_status == "Ongoing" %}
-                                            <span class="badge bg-warning text-dark">Ongoing</span>
-                                        {% elif form.instance.tpt_status == "Overdue" %}
-                                            <span class="badge bg-danger">Overdue</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Not Started</span>
-                                        {% endif %}
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ================= TB ================= -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">TB Section</div>
-                            <div class="card-body">
-                                <div class="row g-3">
-
-                                    <div class="col-md-6">{{ form.tb_screening_date }}</div>
-                                    <div class="col-md-6">{{ form.tb_screening_type }}</div>
-                                    <div class="col-md-6">{{ form.tb_status }}</div>
-                                    <div class="col-md-6">{{ form.tb_sample_collection_date }}</div>
-                                    <div class="col-md-6">{{ form.tb_result_received_date }}</div>
-                                    <div class="col-md-6">{{ form.tb_diagnostic_result }}</div>
 
                                 </div>
                             </div>
@@ -162,28 +189,103 @@
                             <div class="card-body">
                                 <div class="row g-3">
 
-                                    <div class="col-md-4">{{ form.tracking_date_1 }}</div>
-                                    <div class="col-md-4">{{ form.tracking_date_2 }}</div>
-                                    <div class="col-md-4">{{ form.tracking_date_3 }}</div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tracking Date 1</label>
+                                        {{ form.tracking_date_1 }}
+                                    </div>
 
-                                    <div class="col-md-6">{{ form.tracked_by }}</div>
-                                    <div class="col-md-6">{{ form.patient_discontinued }}</div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tracking Date 2</label>
+                                        {{ form.tracking_date_2 }}
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tracking Date 3</label>
+                                        {{ form.tracking_date_3 }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Tracked By</label>
+                                        {{ form.tracked_by }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Missed Reason</label>
+                                        {{ form.missed_reason }}
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label class="form-label">Remark</label>
+                                        {{ form.remark }}
+                                    </div>
 
                                 </div>
                             </div>
                         </div>
 
+                        <!-- ================= DISCONTINUED ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">Client Status</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Patient Discontinued?</label>
+                                        {{ form.patient_discontinued }}
+                                    </div>
+
+                                    <div class="col-md-6" id="reason_box" style="display:none;">
+                                        <label class="form-label">Discontinued Reason</label>
+                                        {{ form.discontinued_reason }}
+                                    </div>
+
+                                    <div class="col-md-6" id="date_box" style="display:none;">
+                                        <label class="form-label">Discontinued Date</label>
+                                        {{ form.discontinued_date }}
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BUTTONS -->
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{% url 'refill_list' %}" class="btn btn-secondary">Back</a>
                             <button type="submit" class="btn btn-success">Save Record</button>
                         </div>
 
                     </form>
+
                 </div>
             </div>
 
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const select = document.getElementById("id_patient_discontinued");
+    const reason = document.getElementById("reason_box");
+    const date = document.getElementById("date_box");
+
+    function toggleFields() {
+        if (!select) return;
+
+        if (select.value === "Y") {
+            reason.style.display = "block";
+            date.style.display = "block";
+        } else {
+            reason.style.display = "none";
+            date.style.display = "none";
+        }
+    }
+
+    select.addEventListener("change", toggleFields);
+    toggleFields();
+
+});
+</script>
 
 {% endblock %}

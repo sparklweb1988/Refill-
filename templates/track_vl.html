@@ -91,7 +91,7 @@
     </a>
 </div>
 
-<!-- ================= DESKTOP ================= -->
+<!-- ================= DESKTOP TABLE ================= -->
 <div class="table-responsive">
 
 <table class="table table-bordered table-hover align-middle">
@@ -101,11 +101,8 @@
     <th>Unique ID</th>
     <th>VL Collected</th>
     <th>Last Refill</th>
-
-    <!-- VL NEW LOGIC -->
     <th>VL Status</th>
     <th>Result</th>
-
     <th>Case Manager</th>
 </tr>
 </thead>
@@ -120,45 +117,13 @@
     <td>{{ refill.vl_sample_collection_date|default:"-" }}</td>
     <td>{{ refill.last_pickup_date|default:"-" }}</td>
 
-    <!-- ================= NEW VL STATUS LOGIC ================= -->
+    <!-- ================= CLEAN VL STATUS ================= -->
     <td>
-
-        {% if refill.vl_sample_collection_date %}
-
-            {% if refill.is_suppressed is not None %}
-
-                {% if refill.is_suppressed %}
-
-                    {% if refill.age and refill.age > 15 %}
-                        <span class="badge bg-success">Suppressed (Annual)</span>
-                    {% else %}
-                        <span class="badge bg-success">Suppressed (6-Month)</span>
-                    {% endif %}
-
-                {% else %}
-                    <span class="badge bg-danger">Not Suppressed (Repeat VL Due)</span>
-                {% endif %}
-
-            {% else %}
-                <span class="badge bg-warning text-dark">Result Pending</span>
-            {% endif %}
-
+        {% if refill.is_vl_eligible_program %}
+            <span class="badge bg-success">Eligible</span>
         {% else %}
-
-            {% if refill.is_vl_eligible %}
-
-                {% if refill.age and refill.age > 15 %}
-                    <span class="badge bg-primary">Eligible (Annual VL Due)</span>
-                {% else %}
-                    <span class="badge bg-primary">Eligible (6-Month VL Due)</span>
-                {% endif %}
-
-            {% else %}
-                <span class="badge bg-secondary">Not Due</span>
-            {% endif %}
-
+            <span class="badge bg-secondary">Not Eligible</span>
         {% endif %}
-
     </td>
 
     <!-- ================= RESULT ================= -->
@@ -190,7 +155,7 @@
 
 </div>
 
-<!-- ================= MOBILE ================= -->
+<!-- ================= MOBILE VIEW ================= -->
 <div class="mobile-view">
 
 {% for refill in vl_refills %}
@@ -202,31 +167,11 @@
     <div><strong>Last Refill:</strong> {{ refill.last_pickup_date|default:"-" }}</div>
 
     <div><strong>VL Status:</strong>
-
-        {% if refill.vl_sample_collection_date %}
-
-            {% if refill.is_suppressed %}
-
-                {% if refill.age and refill.age > 15 %}
-                    Suppressed (Annual)
-                {% else %}
-                    Suppressed (6-Month)
-                {% endif %}
-
-            {% else %}
-                Not Suppressed (Repeat VL Due)
-            {% endif %}
-
+        {% if refill.is_vl_eligible_program %}
+            Eligible
         {% else %}
-
-            {% if refill.is_vl_eligible %}
-                Eligible
-            {% else %}
-                Not Due
-            {% endif %}
-
+            Not Eligible
         {% endif %}
-
     </div>
 
     <div><strong>VL Result:</strong>

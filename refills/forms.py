@@ -3,6 +3,8 @@ from .models import Refill, Facility
 from django.core.exceptions import ValidationError
 from datetime import timedelta
 
+
+# ================= MISSED REASONS =================
 MISSED_REASONS = [
     ('', 'Select Reason'),
     ('Was Sick', 'Was Sick'),
@@ -18,6 +20,7 @@ MISSED_REASONS = [
 
 
 class RefillForm(forms.ModelForm):
+
     missed_reason = forms.ChoiceField(
         choices=MISSED_REASONS,
         required=False,
@@ -26,52 +29,65 @@ class RefillForm(forms.ModelForm):
 
     class Meta:
         model = Refill
+
         fields = [
-            # Basic Info
+
+            # ================= BASIC =================
             'facility', 'unique_id', 'age', 'sex',
 
-            # ART & VL
+            # ================= ART / VL =================
             'art_start_date', 'vl_sample_collection_date', 'vl_result',
 
-            # Refill
+            # ================= REFILL =================
             'last_pickup_date', 'months_of_refill_days',
             'current_regimen', 'case_manager',
 
-            # TB
-            'tb_screening_date', 'tb_screening_type', 'tb_status',
-            'tb_sample_collection_date', 'tb_result_received_date', 'tb_diagnostic_result',
+            # ================= TB CASCADE =================
+            'tb_screening_date',
+            'tb_screening_type',
+            'tb_status',
+            'tb_sample_collection_date',
+            'tb_result_received_date',
+            'tb_diagnostic_result',
 
-            # Tracking
+            # ================= TRACKING =================
             'tracking_date_1', 'tracking_date_2', 'tracking_date_3',
             'tracked_by',
 
-            # Discontinuation
-            'patient_discontinued', 'discontinued_reason', 'discontinued_date',
+            # ================= MISSED / DISCONTINUED =================
+            'patient_discontinued',
+            'discontinued_reason',
+            'discontinued_date',
 
-            # Returned
+            # ================= RETURN =================
             'returned_date',
 
-            # Others
-            'remark', 'tpt_start_date', 'tpt_completion_date',
+            # ================= OTHERS =================
+            'remark',
+            'tpt_start_date',
+            'tpt_completion_date',
         ]
 
         widgets = {
+
+            # BASIC
             'facility': forms.Select(attrs={'class': 'form-select'}),
             'unique_id': forms.TextInput(attrs={'class': 'form-control'}),
             'age': forms.NumberInput(attrs={'class': 'form-control'}),
             'sex': forms.Select(attrs={'class': 'form-select'}),
 
+            # ART / VL
             'art_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'vl_sample_collection_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'vl_result': forms.NumberInput(attrs={'class': 'form-control'}),
 
+            # REFILL
             'last_pickup_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'months_of_refill_days': forms.NumberInput(attrs={'class': 'form-control'}),
-
             'current_regimen': forms.TextInput(attrs={'class': 'form-control'}),
             'case_manager': forms.TextInput(attrs={'class': 'form-control'}),
 
-            # TB
+            # TB CASCADE
             'tb_screening_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tb_screening_type': forms.Select(attrs={'class': 'form-select'}),
             'tb_status': forms.Select(attrs={'class': 'form-select'}),
@@ -79,21 +95,26 @@ class RefillForm(forms.ModelForm):
             'tb_result_received_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tb_diagnostic_result': forms.Select(attrs={'class': 'form-select'}),
 
-            # Tracking
+            # TRACKING
             'tracking_date_1': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tracking_date_2': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tracking_date_3': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tracked_by': forms.TextInput(attrs={'class': 'form-control'}),
 
-            # Discontinued
+            # DISCONTINUED (TEXT FIELD FIXED)
             'patient_discontinued': forms.Select(attrs={'class': 'form-select'}),
-            'discontinued_reason': forms.Select(attrs={'class': 'form-select'}),
+
+            'discontinued_reason': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter reason for discontinuation'
+            }),
+
             'discontinued_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
 
-            # Returned
+            # RETURNED
             'returned_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
 
-            # Others
+            # OTHERS
             'remark': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'tpt_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tpt_completion_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -119,20 +140,18 @@ class RefillForm(forms.ModelForm):
 
         return vl
 
-    # ================= CLEAN (VL RULES FIXED) =================
+    # ================= CLEAN =================
     def clean(self):
         cleaned_data = super().clean()
 
-        art_date = cleaned_data.get("art_start_date")
+        art = cleaned_data.get("art_start_date")
         vl_date = cleaned_data.get("vl_sample_collection_date")
 
-        # ART vs VL consistency
-        if art_date and vl_date:
-            if vl_date < art_date:
+        if art and vl_date:
+            if vl_date < art:
                 raise ValidationError("VL sample date cannot be before ART start date.")
 
-            # 6-month ART eligibility rule
-            if vl_date < art_date + timedelta(days=180):
+            if vl_date < art + timedelta(days=180):
                 self.add_error(
                     "vl_sample_collection_date",
                     "VL should not be collected before 6 months on ART."

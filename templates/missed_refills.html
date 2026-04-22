@@ -77,14 +77,13 @@
 
             <small><strong>Facility:</strong> {{ refill.facility.name|default:"N/A" }}</small><br>
             <small><strong>Case Manager:</strong> {{ refill.case_manager|default:"Not Assigned" }}</small><br>
-            <small><strong>Last Pickup:</strong> {{ refill.last_pickup_date|default:"Never Picked" }}</small><br>
             <small><strong>Next Appointment:</strong> {{ refill.next_appointment }}</small><br>
 
             <small><strong>Days Missed:</strong> {{ refill.days_missed_display }}</small><br>
             <small><strong>IIT Status:</strong> {{ refill.iit_status_display }}</small><br>
 
-            <!-- ================= UPDATED VL ================= -->
-            <small><strong>VL Eligibility:</strong>
+            <!-- ================= FIXED VL STATUS ================= -->
+            <small><strong>VL Status:</strong>
                 {% if refill.is_vl_eligible %}
                     <span class="text-success">Eligible</span>
                 {% else %}
@@ -94,7 +93,6 @@
 
             <small><strong>VL Result:</strong>
                 {% if refill.vl_sample_collection_date %}
-
                     {% if refill.is_suppressed is not None %}
                         {% if refill.is_suppressed %}
                             <span class="text-success">Suppressed (&lt;1000)</span>
@@ -104,7 +102,6 @@
                     {% else %}
                         <span class="text-warning">Result Pending</span>
                     {% endif %}
-
                 {% else %}
                     <span class="text-muted">No VL Done</span>
                 {% endif %}
@@ -138,11 +135,10 @@
                             <th>Unique ID</th>
                             <th>Facility</th>
                             <th>Case Manager</th>
-                            <th>Last Pickup</th>
                             <th>Next Appointment</th>
                             <th>Days Missed</th>
                             <th>IIT Status</th>
-                            <th>VL Eligibility</th>
+                            <th>VL Status</th>
                             <th>VL Result</th>
                             <th>Action</th>
                         </tr>
@@ -152,19 +148,18 @@
 
                         {% for refill in page_obj %}
 
-                        <tr class="{% if refill.days_missed_display >= 28 %}overdue{% elif refill.days_missed_display > 7 %}iit-approaching{% endif %}">
+                        <tr>
 
                             <td>{{ forloop.counter }}</td>
                             <td class="fw-bold text-danger">{{ refill.unique_id }}</td>
                             <td>{{ refill.facility.name|default:"N/A" }}</td>
                             <td>{{ refill.case_manager|default:"Not Assigned" }}</td>
-                            <td>{{ refill.last_pickup_date|default:"Never Picked" }}</td>
                             <td>{{ refill.next_appointment }}</td>
                             <td>{{ refill.days_missed_display }}</td>
 
                             <td>{{ refill.iit_status_display }}</td>
 
-                            <!-- ================= VL ELIGIBILITY ================= -->
+                            <!-- ================= FIXED VL STATUS ================= -->
                             <td>
                                 {% if refill.is_vl_eligible %}
                                     <span class="badge bg-success">Eligible</span>
@@ -173,7 +168,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- ================= VL RESULT ================= -->
                             <td>
                                 {% if refill.vl_sample_collection_date %}
 
@@ -203,7 +197,7 @@
 
                         {% empty %}
                         <tr>
-                            <td colspan="11" class="text-center text-success">
+                            <td colspan="10" class="text-center text-success">
                                 No missed refills 🎉
                             </td>
                         </tr>
@@ -213,57 +207,10 @@
 
                 </table>
 
-                <!-- ================= PAGINATION ================= -->
-                <nav>
-                    <ul class="pagination justify-content-center">
-
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
-                               Previous
-                            </a>
-                        </li>
-                        {% endif %}
-
-                        <li class="page-item disabled">
-                            <span class="page-link">
-                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                            </span>
-                        </li>
-
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
-                               Next
-                            </a>
-                        </li>
-                        {% endif %}
-
-                    </ul>
-                </nav>
-
             </div>
         </div>
 
     </div>
-
-    <!-- ================= EXPORT ================= -->
-    <form method="get" class="mt-3">
-
-        <input type="hidden" name="facility" value="{{ selected_facility }}">
-        <input type="hidden" name="case_manager" value="{{ selected_case_manager }}">
-        <input type="hidden" name="start_date" value="{{ selected_start_date }}">
-        <input type="hidden" name="end_date" value="{{ selected_end_date }}">
-        <input type="hidden" name="search_unique_id" value="{{ search_unique_id }}">
-
-        <button type="submit" name="export" value="excel"
-                class="btn btn-success w-100">
-            Download Excel Report
-        </button>
-
-    </form>
 
 </div>
 
