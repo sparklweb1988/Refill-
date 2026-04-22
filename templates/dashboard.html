@@ -59,7 +59,7 @@
             </div>
         </div>
 
-        <!-- MISSED / IIT / AHD -->
+        <!-- MISSED / IIT / PROGRAM -->
         <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-white bg-danger shadow">
                 <div class="card-body text-center">
@@ -81,7 +81,7 @@
         <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-white bg-danger shadow">
                 <div class="card-body text-center">
-                    <h6>AHD (Restart)</h6>
+                    <h6>Restart</h6>
                     <h2>{{ ahd_count|default:0 }}</h2>
                 </div>
             </div>
@@ -96,7 +96,67 @@
             </div>
         </div>
 
-        <!-- VL CORE -->
+        <!-- ================= VL SECTION ================= -->
+
+        <!-- GLOBAL ELIGIBILITY -->
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card text-white bg-primary shadow">
+                <div class="card-body text-center">
+                    <h6>VL Eligible (All Time)</h6>
+                    <h2>{{ vl_denominator|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUARTER ELIGIBLE (NEW) -->
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card text-white bg-secondary shadow">
+                <div class="card-body text-center">
+                    <h6>VL Eligible (Quarter)</h6>
+                    <h2>{{ quarterly_vl_denominator|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUARTER ACTIVITY -->
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card text-white bg-primary shadow">
+                <div class="card-body text-center">
+                    <h6>VL Sample Collected (Quarter)</h6>
+                    <h2>{{ quarter_vl_collected|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card text-white bg-info shadow">
+                <div class="card-body text-center">
+                    <h6>VL Result Received (Quarter)</h6>
+                    <h2>{{ quarter_vl_result_received|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- OVERALL ACTIVITY (NEW) -->
+        <!-- <div class="col-12 col-sm-6 col-md-3">
+            <div class="card text-dark bg-success shadow">
+                <div class="card-body text-center">
+                    <h6>VL Sample Collected (Total)</h6>
+                    <h2>{{ overall_vl_sample_collected|default:0 }}</h2>
+                </div>
+            </div>
+        </div> -->
+
+        <!-- <div class="col-12 col-sm-6 col-md-3">
+            <div class="card text-dark bg-info shadow">
+                <div class="card-body text-center">
+                    <h6>VL Result Received (Total)</h6>
+                    <h2>{{ overall_vl_result_received|default:0 }}</h2>
+                </div>
+            </div>
+        </div> -->
+
+        <!-- PERFORMANCE -->
         <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-dark bg-success shadow">
                 <div class="card-body text-center">
@@ -106,67 +166,20 @@
             </div>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
+        <!-- <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-dark bg-secondary shadow">
                 <div class="card-body text-center">
-                    <h6>VL Gap</h6>
+                    <h6>VL Coverage Gap</h6>
                     <h2>{{ vl_coverage_gap|default:0 }}</h2>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <div class="col-12 col-sm-6 col-md-3">
             <div class="card text-white bg-info shadow">
                 <div class="card-body text-center">
                     <h6>VL Suppression %</h6>
                     <h2>{{ vl_suppression_rate|default:0 }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <!-- VL OPERATIONS -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-primary shadow">
-                <div class="card-body text-center">
-                    <h6>VL Quarter Eligible</h6>
-                    <h2>{{ vl_denominator|default:0 }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <!-- <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-success shadow">
-                <div class="card-body text-center">
-                    <h6>VL Sample Collected</h6>
-                    <h2>{{ vl_sample_collected|default:0 }}</h2>
-                </div>
-            </div>
-        </div> -->
-
-        <!-- <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-info shadow">
-                <div class="card-body text-center">
-                    <h6>VL Result Received</h6>
-                    <h2>{{ vl_result_received|default:0 }}</h2>
-                </div>
-            </div>
-        </div> -->
-
-        <!-- QUARTERLY VL -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-primary shadow">
-                <div class="card-body text-center">
-                    <h6>Quarter VL Collected</h6>
-                    <h2>{{ quarter_vl_collected|default:0 }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card text-white bg-info shadow">
-                <div class="card-body text-center">
-                    <h6>Quarter VL Result Received</h6>
-                    <h2>{{ quarter_vl_result_received|default:0 }}</h2>
                 </div>
             </div>
         </div>

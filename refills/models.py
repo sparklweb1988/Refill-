@@ -26,9 +26,6 @@ class Facility(models.Model):
 
 
 
-
-
-
 class Refill(models.Model):
 
     SEX_CHOICES = (
@@ -131,7 +128,7 @@ class Refill(models.Model):
     tb_result_received_date = models.DateField(blank=True, null=True)
     tb_diagnostic_result = models.CharField(max_length=50, choices=TB_RESULT_CHOICES, blank=True, null=True)
 
-    # ================= TRACKING (FIXED ERROR FIELDS) =================
+    # ================= TRACKING =================
     tracking_date_1 = models.DateField(null=True, blank=True)
     tracking_date_2 = models.DateField(null=True, blank=True)
     tracking_date_3 = models.DateField(null=True, blank=True)
@@ -188,11 +185,17 @@ class Refill(models.Model):
             return 0
         return max((timezone.now().date() - self.next_appointment).days, 0)
 
-    # ================= VL ELIGIBILITY =================
+    # ================= AGE-BASED VL INTERVAL =================
+    @property
+    def vl_interval_months(self):
+        if self.age is None:
+            return 12
+        return 6 if self.age <= 15 else 12
+
+    # ================= CLEAN VL ELIGIBILITY (FIXED) =================
     @property
     def is_vl_eligible(self):
         today = timezone.now().date()
-        FY_START = date(2025, 10, 1)
 
         if self.current_art_status not in ["Active", "Active Restart", "Restart"]:
             return False
@@ -206,17 +209,27 @@ class Refill(models.Model):
         if not self.art_start_date:
             return False
 
-        if self.art_start_date + relativedelta(months=6) > today:
+        if (today - self.art_start_date).days < 180:
+            return False
+
+        return True
+
+    # ================= VL DUE (NEW LOGIC BASED ON AGE) =================
+    @property
+    def is_vl_due(self):
+        today = timezone.now().date()
+
+        if not self.is_vl_eligible:
             return False
 
         if not self.vl_sample_collection_date:
             return True
 
-        if self.age is not None and self.age >= 15:
-            return self.vl_sample_collection_date < FY_START
+        next_due = self.vl_sample_collection_date + relativedelta(
+            months=self.vl_interval_months
+        )
 
-        months_since = (today - self.vl_sample_collection_date).days / 30
-        return months_since >= 6
+        return today >= next_due
 
     # ================= SUPPRESSION =================
     @property
@@ -250,9 +263,7 @@ class Refill(models.Model):
         if self.eac_sessions_completed == 2:
             return "Eligible for 3rd EAC"
         return "Post-EAC VL Due"
-    
-    
-    
+
     @property
     def post_eac_vl_due(self):
         today = timezone.now().date()

@@ -7,7 +7,6 @@
     overflow-x: auto;
 }
 
-/* ================= MOBILE CARDS ================= */
 .mobile-view {
     display: none;
 }
@@ -26,162 +25,264 @@
     width: 140px;
 }
 
-/* Hide table on mobile */
 @media (max-width: 768px) {
-    .table-responsive {
-        display: none;
-    }
-
-    .mobile-view {
-        display: block;
-    }
+    .table-responsive { display: none; }
+    .mobile-view { display: block; }
 }
 </style>
 
 <div class="container mt-4">
 
-    <!-- Filters -->
-    <form method="get" class="row g-3 mb-4">
+<!-- ================= FILTERS ================= -->
+<form method="get" class="row g-3 mb-4">
 
-        <div class="col-md-3">
-            <select name="facility" class="form-select" onchange="this.form.submit()">
-                <option value="">All Facilities</option>
-                {% for facility in facilities %}
-                    <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
-                        {{ facility.name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="col-md-3">
-            <select name="case_manager" class="form-select" onchange="this.form.submit()">
-                <option value="">All Case Managers</option>
-                {% for cm in case_managers %}
-                    <option value="{{ cm }}" {% if cm == selected_case_manager %}selected{% endif %}>
-                        {{ cm }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="col-md-3">
-            <input type="text" name="unique_id" class="form-control"
-                   placeholder="Unique ID" value="{{ selected_unique_id|default_if_none:'' }}">
-        </div>
-
-        <div class="col-md-3 d-flex">
-            <input type="date" name="start_date" class="form-control me-2" value="{{ selected_start_date }}">
-            <input type="date" name="end_date" class="form-control me-2" value="{{ selected_end_date }}">
-            <button type="submit" class="btn btn-primary">Filter</button>
-        </div>
-
-    </form>
-
-    <!-- Download Button -->
-    <div class="mb-3">
-        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=1"
-           class="btn btn-success">
-            Download Excel
-        </a>
+    <div class="col-md-3">
+        <select name="facility" class="form-select" onchange="this.form.submit()">
+            <option value="">All Facilities</option>
+            {% for facility in facilities %}
+                <option value="{{ facility.id }}"
+                    {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+                    {{ facility.name }}
+                </option>
+            {% endfor %}
+        </select>
     </div>
 
-    <!-- ================= DESKTOP TABLE ================= -->
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover align-middle">
-            <thead class="table-dark text-center">
-                <tr>
-                    <th>Unique ID</th>
-                    <th>VL Date Collected</th>
-                    <th>Date Refilled</th>
-                    <th>Current Result</th>
-                    <th>Case Manager</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for refill in vl_refills %}
-                <tr class="text-center">
-                    <td>{{ refill.unique_id }}</td>
-                    <td>{{ refill.vl_sample_collection_date|default:"-" }}</td>
-                    <td>{{ refill.last_pickup_date|default:"-" }}</td>
-
-                    <td class="{% if refill.vl_result and refill.vl_result > 1000 %}text-danger fw-bold{% endif %}">
-                        {{ refill.vl_result|default:"-" }}
-                    </td>
-
-                    <td>{{ refill.case_manager|default:"-" }}</td>
-                </tr>
-
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">No records found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="col-md-3">
+        <select name="case_manager" class="form-select" onchange="this.form.submit()">
+            <option value="">All Case Managers</option>
+            {% for cm in case_managers %}
+                <option value="{{ cm }}"
+                    {% if cm == selected_case_manager %}selected{% endif %}>
+                    {{ cm }}
+                </option>
+            {% endfor %}
+        </select>
     </div>
 
-    <!-- ================= MOBILE CARDS ================= -->
-    <div class="mobile-view">
-
-        {% for refill in vl_refills %}
-
-        <div class="mobile-card">
-
-            <div><strong>Unique ID:</strong> {{ refill.unique_id }}</div>
-            <div><strong>VL Collected:</strong> {{ refill.vl_sample_collection_date|default:"-" }}</div>
-            <div><strong>Date Refilled:</strong> {{ refill.last_pickup_date|default:"-" }}</div>
-
-            <div>
-                <strong>Current Result:</strong>
-                <span class="{% if refill.vl_result and refill.vl_result > 1000 %}text-danger fw-bold{% endif %}">
-                    {{ refill.vl_result|default:"-" }}
-                </span>
-            </div>
-
-            <div><strong>Case Manager:</strong> {{ refill.case_manager|default:"-" }}</div>
-
-        </div>
-
-        {% empty %}
-        <p class="text-center">No records found.</p>
-        {% endfor %}
-
+    <div class="col-md-3">
+        <input type="text" name="unique_id"
+               class="form-control"
+               placeholder="Unique ID"
+               value="{{ selected_unique_id|default_if_none:'' }}">
     </div>
 
-    <!-- ================= PAGINATION ================= -->
-    {% if vl_refills.has_other_pages %}
-    <nav>
-        <ul class="pagination justify-content-center">
+    <div class="col-md-3 d-flex">
+        <input type="date" name="start_date"
+               class="form-control me-2"
+               value="{{ selected_start_date }}">
 
-            {% if vl_refills.has_previous %}
-            <li class="page-item">
-                <a class="page-link"
-                   href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.previous_page_number }}">
-                    Previous
-                </a>
-            </li>
+        <input type="date" name="end_date"
+               class="form-control me-2"
+               value="{{ selected_end_date }}">
+
+        <button type="submit" class="btn btn-primary">
+            Filter
+        </button>
+    </div>
+
+</form>
+
+<!-- ================= DOWNLOAD ================= -->
+<div class="mb-3">
+    <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=1"
+       class="btn btn-success">
+        Download Excel
+    </a>
+</div>
+
+<!-- ================= DESKTOP ================= -->
+<div class="table-responsive">
+
+<table class="table table-bordered table-hover align-middle">
+
+<thead class="table-dark text-center">
+<tr>
+    <th>Unique ID</th>
+    <th>VL Collected</th>
+    <th>Last Refill</th>
+
+    <!-- VL NEW LOGIC -->
+    <th>VL Status</th>
+    <th>Result</th>
+
+    <th>Case Manager</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for refill in vl_refills %}
+
+<tr class="text-center">
+
+    <td>{{ refill.unique_id }}</td>
+    <td>{{ refill.vl_sample_collection_date|default:"-" }}</td>
+    <td>{{ refill.last_pickup_date|default:"-" }}</td>
+
+    <!-- ================= NEW VL STATUS LOGIC ================= -->
+    <td>
+
+        {% if refill.vl_sample_collection_date %}
+
+            {% if refill.is_suppressed is not None %}
+
+                {% if refill.is_suppressed %}
+
+                    {% if refill.age and refill.age > 15 %}
+                        <span class="badge bg-success">Suppressed (Annual)</span>
+                    {% else %}
+                        <span class="badge bg-success">Suppressed (6-Month)</span>
+                    {% endif %}
+
+                {% else %}
+                    <span class="badge bg-danger">Not Suppressed (Repeat VL Due)</span>
+                {% endif %}
+
+            {% else %}
+                <span class="badge bg-warning text-dark">Result Pending</span>
             {% endif %}
 
-            <li class="page-item disabled">
-                <span class="page-link">
-                    Page {{ vl_refills.number }} of {{ vl_refills.paginator.num_pages }}
-                </span>
-            </li>
+        {% else %}
 
-            {% if vl_refills.has_next %}
-            <li class="page-item">
-                <a class="page-link"
-                   href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.next_page_number }}">
-                    Next
-                </a>
-            </li>
+            {% if refill.is_vl_eligible %}
+
+                {% if refill.age and refill.age > 15 %}
+                    <span class="badge bg-primary">Eligible (Annual VL Due)</span>
+                {% else %}
+                    <span class="badge bg-primary">Eligible (6-Month VL Due)</span>
+                {% endif %}
+
+            {% else %}
+                <span class="badge bg-secondary">Not Due</span>
             {% endif %}
 
-        </ul>
-    </nav>
-    {% endif %}
+        {% endif %}
+
+    </td>
+
+    <!-- ================= RESULT ================= -->
+    <td>
+        {% if refill.vl_result %}
+            {% if refill.is_suppressed %}
+                <span class="text-success fw-bold">Suppressed (&lt;1000)</span>
+            {% else %}
+                <span class="text-danger fw-bold">Not Suppressed (≥1000)</span>
+            {% endif %}
+        {% else %}
+            <span class="text-muted">No Result</span>
+        {% endif %}
+    </td>
+
+    <td>{{ refill.case_manager|default:"-" }}</td>
+
+</tr>
+
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center">No records found.</td>
+</tr>
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+<!-- ================= MOBILE ================= -->
+<div class="mobile-view">
+
+{% for refill in vl_refills %}
+
+<div class="mobile-card">
+
+    <div><strong>Unique ID:</strong> {{ refill.unique_id }}</div>
+    <div><strong>VL Collected:</strong> {{ refill.vl_sample_collection_date|default:"-" }}</div>
+    <div><strong>Last Refill:</strong> {{ refill.last_pickup_date|default:"-" }}</div>
+
+    <div><strong>VL Status:</strong>
+
+        {% if refill.vl_sample_collection_date %}
+
+            {% if refill.is_suppressed %}
+
+                {% if refill.age and refill.age > 15 %}
+                    Suppressed (Annual)
+                {% else %}
+                    Suppressed (6-Month)
+                {% endif %}
+
+            {% else %}
+                Not Suppressed (Repeat VL Due)
+            {% endif %}
+
+        {% else %}
+
+            {% if refill.is_vl_eligible %}
+                Eligible
+            {% else %}
+                Not Due
+            {% endif %}
+
+        {% endif %}
+
+    </div>
+
+    <div><strong>VL Result:</strong>
+        {% if refill.vl_result %}
+            {% if refill.is_suppressed %}
+                Suppressed
+            {% else %}
+                Not Suppressed
+            {% endif %}
+        {% else %}
+            No Result
+        {% endif %}
+    </div>
+
+    <div><strong>Case Manager:</strong> {{ refill.case_manager|default:"-" }}</div>
+
+</div>
+
+{% empty %}
+<p class="text-center">No records found.</p>
+{% endfor %}
+
+</div>
+
+<!-- ================= PAGINATION ================= -->
+{% if vl_refills.has_other_pages %}
+<nav>
+    <ul class="pagination justify-content-center">
+
+        {% if vl_refills.has_previous %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.previous_page_number }}">
+                Previous
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="page-item disabled">
+            <span class="page-link">
+                Page {{ vl_refills.number }} of {{ vl_refills.paginator.num_pages }}
+            </span>
+        </li>
+
+        {% if vl_refills.has_next %}
+        <li class="page-item">
+            <a class="page-link"
+               href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.next_page_number }}">
+                Next
+            </a>
+        </li>
+        {% endif %}
+
+    </ul>
+</nav>
+{% endif %}
 
 </div>
 

@@ -10,7 +10,6 @@
 
 .pagination { justify-content: center; margin-top: 20px; }
 
-/* MOBILE */
 .mobile-card {
   border: 1px solid #ddd;
   border-radius: 12px;
@@ -19,6 +18,7 @@
   background: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
+
 .mobile-card.overdue { background-color: #ffe6e6; }
 
 .card-title { font-weight: bold; }
@@ -26,6 +26,7 @@
 @media (max-width: 768px) {
   .desktop-view { display: none; }
 }
+
 @media (min-width: 769px) {
   .mobile-view { display: none; }
 }
@@ -35,13 +36,15 @@
 
 <h4 class="text-center mb-3">Track Refills</h4>
 
-<!-- FILTERS -->
+<!-- ================= FILTERS ================= -->
 <form method="get" class="row g-2 mb-3">
+
     <div class="col-md-3">
         <select name="facility" class="form-select">
             <option value="">All Facilities</option>
             {% for f in facilities %}
-            <option value="{{ f.id }}" {% if f.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+            <option value="{{ f.id }}"
+                {% if f.id|stringformat:"s" == selected_facility %}selected{% endif %}>
                 {{ f.name }}
             </option>
             {% endfor %}
@@ -58,12 +61,19 @@
             {% endfor %}
         </select>
     </div>
-    <input type="date" name="start_date" value="{{ request.GET.start_date }}" class="form-control w-auto">
-    <input type="date" name="end_date" value="{{  request.GET.end_date}}" class="form-control w-auto">
+
+    <input type="date" name="start_date"
+           value="{{ request.GET.start_date }}"
+           class="form-control w-auto">
+
+    <input type="date" name="end_date"
+           value="{{ request.GET.end_date }}"
+           class="form-control w-auto">
 
     <div class="col-md-2">
         <button class="btn btn-primary w-100">Filter</button>
     </div>
+
 </form>
 
 <!-- DOWNLOAD -->
@@ -73,21 +83,27 @@
     </a>
 </div>
 
-<!-- ================= DESKTOP TABLE ================= -->
+<!-- ================= DESKTOP ================= -->
 <div class="desktop-view table-container">
 
 <table class="table table-bordered table-hover">
+
 <thead class="table-dark">
 <tr>
     <th>ID</th>
     <th>Facility</th>
     <th>Refill Date</th>
     <th>Next Appt</th>
-    <th>VL</th>
+
+    <!-- VL -->
+    <th>VL Status</th>
+    <th>VL Result</th>
+
     <th>Tracking 1</th>
     <th>Tracking 2</th>
     <th>Tracking 3</th>
     <th>Tracked By</th>
+
     <th>Discontinued</th>
     <th>Reason</th>
     <th>Date</th>
@@ -96,14 +112,66 @@
 </thead>
 
 <tbody>
+
 {% for r in page_obj %}
 <tr {% if r.next_appointment < today %}class="overdue"{% endif %}>
+
     <td>{{ r.unique_id }}</td>
     <td>{{ r.facility.name }}</td>
     <td>{{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ r.next_appointment|date:"Y-m-d" }}</td>
-   
-    <td>{{ r.vl_status }}</td>
+
+    <!-- ================= VL STATUS (UPDATED LOGIC) ================= -->
+    <td>
+        {% if r.vl_sample_collection_date %}
+
+            {% if r.is_suppressed is not None %}
+
+                {% if r.is_suppressed %}
+
+                    {% if r.age and r.age > 15 %}
+                        <span class="badge bg-success">Suppressed (Annual)</span>
+                    {% else %}
+                        <span class="badge bg-success">Suppressed (6-Month)</span>
+                    {% endif %}
+
+                {% else %}
+                    <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+                {% endif %}
+
+            {% else %}
+                <span class="badge bg-warning text-dark">Result Pending</span>
+            {% endif %}
+
+        {% else %}
+
+            {% if r.is_vl_eligible %}
+
+                {% if r.age and r.age > 15 %}
+                    <span class="badge bg-primary">Eligible (Annual VL)</span>
+                {% else %}
+                    <span class="badge bg-primary">Eligible (6-Month VL)</span>
+                {% endif %}
+
+            {% else %}
+                <span class="badge bg-secondary">Not Due</span>
+            {% endif %}
+
+        {% endif %}
+    </td>
+
+    <!-- VL RESULT -->
+    <td>
+        {% if r.vl_result %}
+            {% if r.is_suppressed %}
+                <span class="badge bg-success">Suppressed (&lt;1000)</span>
+            {% else %}
+                <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+            {% endif %}
+        {% else %}
+            <span class="badge bg-secondary">No Result</span>
+        {% endif %}
+    </td>
 
     <td>{{ r.tracking_date_1|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ r.tracking_date_2|date:"Y-m-d"|default:"-" }}</td>
@@ -114,12 +182,14 @@
     <td>{{ r.discontinued_reason|default:"-" }}</td>
     <td>{{ r.discontinued_date|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ r.returned_date|date:"Y-m-d"|default:"-" }}</td>
+
 </tr>
 {% empty %}
 <tr>
 <td colspan="14" class="text-center">No records</td>
 </tr>
 {% endfor %}
+
 </tbody>
 </table>
 
@@ -136,8 +206,47 @@
   <div><strong>Facility:</strong> {{ r.facility.name }}</div>
   <div><strong>Refill Date:</strong> {{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</div>
   <div><strong>Next:</strong> {{ r.next_appointment|date:"Y-m-d" }}</div>
- 
-  <div><strong>VL:</strong> {{ r.vl_status }}</div>
+
+  <!-- VL -->
+  <div><strong>VL Status:</strong>
+
+      {% if r.vl_sample_collection_date %}
+
+          {% if r.is_suppressed %}
+
+              {% if r.age and r.age > 15 %}
+                  Suppressed (Annual)
+              {% else %}
+                  Suppressed (6-Month)
+              {% endif %}
+
+          {% else %}
+              Not Suppressed (≥1000)
+          {% endif %}
+
+      {% else %}
+
+          {% if r.is_vl_eligible %}
+              Eligible
+          {% else %}
+              Not Due
+          {% endif %}
+
+      {% endif %}
+
+  </div>
+
+  <div><strong>VL Result:</strong>
+      {% if r.vl_result %}
+          {% if r.is_suppressed %}
+              Suppressed
+          {% else %}
+              Not Suppressed
+          {% endif %}
+      {% else %}
+          No Result
+      {% endif %}
+  </div>
 
   <hr>
 
@@ -162,7 +271,7 @@
 
 </div>
 
-<!-- PAGINATION -->
+<!-- ================= PAGINATION ================= -->
 <nav>
 <ul class="pagination">
 

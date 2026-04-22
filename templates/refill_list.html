@@ -63,7 +63,6 @@
             <th>TPT Status</th>
             <th>TB Status</th>
 
-            <!-- New Columns -->
             <th>Tracking Attempt 1</th>
             <th>Tracking Attempt 2</th>
             <th>Tracking Attempt 3</th>
@@ -73,11 +72,11 @@
             <th>Date Returned</th>
             <th>Reason for Discontinuation</th>
             <th>Reason Missed Appointment</th>
-            <!-- <th>Others / Remarks</th> -->
 
             <th>Action</th>
           </tr>
         </thead>
+
         <tbody>
           {% for refill in period.page_obj %}
           <tr class="{% if refill.days_missed_display > 0 %}overdue{% endif %}">
@@ -88,17 +87,53 @@
             <td>{{ refill.case_manager }}</td>
             <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
 
-            <!-- VL Status -->
+            <!-- ================= VL (FULL LOGIC UPDATED) ================= -->
             <td>
-              {% if refill.vl_result %}
-                {% if refill.is_suppressed %}
-                  <span class="badge bg-success">Suppressed (&lt;1000)</span>
-                {% else %}
-                  <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-                {% endif %}
+
+              {% if refill.vl_sample_collection_date %}
+
+                  {% if refill.is_suppressed is not None %}
+
+                      {% if refill.is_suppressed %}
+
+                          {% if refill.age and refill.age > 15 %}
+                              <span class="badge bg-success">Suppressed (Annual)</span>
+                          {% else %}
+                              <span class="badge bg-success">Suppressed (6-Month)</span>
+                          {% endif %}
+
+                      {% else %}
+
+                          {% if refill.vl_status == "Repeat VL Due" %}
+                              <span class="badge bg-danger">Repeat VL Due</span>
+                          {% else %}
+                              <span class="badge bg-warning text-dark">
+                                  Not Suppressed (≥1000)
+                              </span>
+                          {% endif %}
+
+                      {% endif %}
+
+                  {% else %}
+                      <span class="badge bg-secondary">Result Pending</span>
+                  {% endif %}
+
               {% else %}
-                <span class="badge bg-secondary">Not Eligible</span>
+
+                  {% if refill.is_vl_eligible %}
+
+                      {% if refill.age and refill.age > 15 %}
+                          <span class="badge bg-primary">Eligible (Annual VL)</span>
+                      {% else %}
+                          <span class="badge bg-primary">Eligible (6-Month VL)</span>
+                      {% endif %}
+
+                  {% else %}
+                      <span class="badge bg-secondary">Not Due</span>
+                  {% endif %}
+
               {% endif %}
+
             </td>
 
             <!-- EAC -->
@@ -118,10 +153,10 @@
             <!-- TPT -->
             <td>{{ refill.tpt_status }}</td>
 
-            <!-- TB Status -->
+            <!-- TB -->
             <td>{{ refill.get_tb_status_display|default:"-" }}</td>
 
-            <!-- New Columns -->
+            <!-- Tracking -->
             <td>{{ refill.tracking_date_1|date:"Y-m-d" }}</td>
             <td>{{ refill.tracking_date_2|date:"Y-m-d" }}</td>
             <td>{{ refill.tracking_date_3|date:"Y-m-d" }}</td>
@@ -131,15 +166,16 @@
             <td>{{ refill.returned_date|date:"Y-m-d" }}</td>
             <td>{{ refill.discontinued_reason }}</td>
             <td>{{ refill.remark }}</td>
-            <!-- <td>{{ refill.others|default:"" }}</td> -->
 
             <td>
               {% if refill.missed_appointment %}
                 <span class="badge bg-danger">Missed</span><br>
               {% endif %}
-              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Manage
-                Refill</a>
+              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">
+                Manage Refill
+              </a>
             </td>
+
           </tr>
           {% empty %}
           <tr>
@@ -155,6 +191,7 @@
       {% for refill in period.page_obj %}
       <div class="card card-mobile {% if refill.days_missed_display > 0 %}overdue{% endif %}">
         <div class="card-body">
+
           <p><strong>Unique ID:</strong> {{ refill.unique_id }}</p>
           <p><strong>Age / Sex:</strong> {{ refill.age }} / {{ refill.sex }}</p>
           <p><strong>Facility:</strong> {{ refill.facility.name }}</p>
@@ -162,24 +199,58 @@
           <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
 
           <p><strong>VL Status:</strong>
-            {% if refill.vl_result %}
-              {% if refill.is_suppressed %}Suppressed (&lt;1000){% else %}Not Suppressed (≥1000){% endif %}
-            {% else %}No VL{% endif %}
+
+            {% if refill.vl_sample_collection_date %}
+
+                {% if refill.is_suppressed %}
+
+                    {% if refill.age and refill.age > 15 %}
+                        Suppressed (Annual)
+                    {% else %}
+                        Suppressed (6-Month)
+                    {% endif %}
+
+                {% else %}
+
+                    {% if refill.vl_status == "Repeat VL Due" %}
+                        Repeat VL Due
+                    {% else %}
+                        Not Suppressed (≥1000)
+                    {% endif %}
+
+                {% endif %}
+
+            {% else %}
+
+                {% if refill.is_vl_eligible %}
+                    Eligible (No VL yet)
+                {% else %}
+                    Not Due
+                {% endif %}
+
+            {% endif %}
+
           </p>
 
           <p><strong>TB Status:</strong> {{ refill.get_tb_status_display|default:"-" }}</p>
 
-          <!-- New Columns -->
-          <p><strong>Tracking Attempts:</strong> {{ refill.tracking_date_1|date:"Y-m-d" }}, {{ refill.tracking_date_2|date:"Y-m-d" }}, {{ refill.tracking_date_3|date:"Y-m-d" }}</p>
+          <p><strong>Tracking Attempts:</strong>
+            {{ refill.tracking_date_1|date:"Y-m-d" }},
+            {{ refill.tracking_date_2|date:"Y-m-d" }},
+            {{ refill.tracking_date_3|date:"Y-m-d" }}
+          </p>
+
           <p><strong>Tracked By:</strong> {{ refill.tracked_by }}</p>
           <p><strong>Discontinued?:</strong> {{ refill.patient_discontinued }}</p>
           <p><strong>Date Discontinued:</strong> {{ refill.discontinued_date|date:"Y-m-d" }}</p>
           <p><strong>Date Returned:</strong> {{ refill.returned_date|date:"Y-m-d" }}</p>
-          <p><strong>Discontinuation Reason:</strong> {{ refill.discontinued_reason }}</p>
-          <p><strong>Reason Missed Appointment:</strong> {{ refill.remark }}</p>
-          <!-- <p><strong>Others:</strong> {{ refill.others|default:"" }}</p> -->
+          <p><strong>Reason:</strong> {{ refill.discontinued_reason }}</p>
+          <p><strong>Remark:</strong> {{ refill.remark }}</p>
 
-          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">Manage Refill</a>
+          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">
+            Manage Refill
+          </a>
+
         </div>
       </div>
       {% empty %}
@@ -195,13 +266,14 @@
       <div>
         {% if period.page_obj.has_previous %}
         <a class="btn btn-sm btn-outline-secondary"
-          href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
+           href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
           Prev
         </a>
         {% endif %}
+
         {% if period.page_obj.has_next %}
         <a class="btn btn-sm btn-outline-secondary"
-          href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
+           href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
           Next
         </a>
         {% endif %}
@@ -211,12 +283,13 @@
   </div>
   {% endfor %}
 
-  <!-- Download Excel Button -->
+  <!-- Download Excel -->
   <div class="text-end mb-4">
     <a href="{% url 'export_refills_excel' %}" class="btn btn-success">
-      <i class="bi bi-download"></i> Download Excel
+      Download Excel
     </a>
   </div>
 
 </div>
+
 {% endblock %}
