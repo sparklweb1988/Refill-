@@ -78,9 +78,10 @@
 
 <!-- DOWNLOAD -->
 <div class="text-end mb-3">
-    <a href="{% url 'export_track_refills_excel' %}" class="btn btn-success">
-        Download Excel
-    </a>
+    <a href="{% url 'export_track_refills' %}?{{ request.GET.urlencode }}"
+    class="btn btn-success btn-sm">
+    <i class="bi bi-download"></i> Download Excel
+ </a>
 </div>
 
 <!-- ================= DESKTOP ================= -->

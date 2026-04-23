@@ -212,6 +212,10 @@
 
     </div>
 
+    <a href="{% url 'export_missed_refills' %}?{{ query_params }}"
+   class="btn btn-success btn-sm">
+   <i class="bi bi-download"></i> Download Excel
+</a>
 </div>
 
 {% endblock %}

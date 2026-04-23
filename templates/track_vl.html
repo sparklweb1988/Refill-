@@ -85,10 +85,10 @@
 
 <!-- ================= DOWNLOAD ================= -->
 <div class="mb-3">
-    <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=1"
-       class="btn btn-success">
-        Download Excel
-    </a>
+    <a href="{% url 'export_vl' %}?{{ request.GET.urlencode }}"
+    class="btn btn-success btn-sm">
+    <i class="bi bi-download"></i> Download Excel
+ </a>
 </div>
 
 <!-- ================= DESKTOP TABLE ================= -->

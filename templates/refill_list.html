@@ -220,9 +220,10 @@
 
   <!-- Download Excel -->
   <div class="text-end mb-4">
-    <a href="{% url 'export_refills_excel' %}" class="btn btn-success">
-      Download Excel
-    </a>
+    <a href="{% url 'export_refills' %}?{{ query_params }}"
+    class="btn btn-success btn-sm">
+    <i class="bi bi-download"></i> Download Excel
+ </a>
   </div>
 
 </div>
