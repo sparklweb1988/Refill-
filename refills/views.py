@@ -1733,7 +1733,6 @@ def export_missed_refills_view(request):
     
     
     
-    
 @login_required
 def track_vl(request):
 
@@ -1766,7 +1765,9 @@ def track_vl(request):
 
     refills = refills.order_by("-vl_sample_collection_date")
 
-    # ================= PROCESS =================
+    # ================= PROCESS (FIXED) =================
+    processed_refills = []
+
     for r in refills:
 
         r.days_missed_display = (
@@ -1775,53 +1776,43 @@ def track_vl(request):
             else 0
         )
 
-        # =====================================================
-        # 🔥 SINGLE SOURCE OF TRUTH (SAFE FIXED VERSION)
-        # =====================================================
         vl_eligible = r.is_vl_eligible_program
         is_suppressed = r.is_suppressed
 
-        # ================= NOT ELIGIBLE =================
         if not vl_eligible:
             r.vl_status = "Not Eligible"
-            continue
 
-        # ================= NO VL YET =================
-        if not r.vl_sample_collection_date:
+        elif not r.vl_sample_collection_date:
             r.vl_status = "Eligible (No VL Yet)"
-            continue
 
-        # ================= RESULT PENDING =================
-        if is_suppressed is None:
+        elif is_suppressed is None:
             r.vl_status = "VL Result Pending"
-            continue
 
-        # ================= TIME CALCULATION =================
-        delta_months = (
-            (today.year - r.vl_sample_collection_date.year) * 12 +
-            (today.month - r.vl_sample_collection_date.month)
-        )
-
-        # ✅ FIX: safe interval (NO MORE ATTRIBUTE ERROR)
-        interval = 12  # default VL interval in months
-
-        # ================= UNSUPPRESSED =================
-        if is_suppressed is False:
-            r.vl_status = (
-                "Repeat VL Due"
-                if delta_months >= 3
-                else "Awaiting Repeat VL"
-            )
-
-        # ================= SUPPRESSED =================
         else:
-            r.vl_status = (
-                f"Eligible ({interval}-Month VL Due)"
-                if delta_months >= interval
-                else "VL Up to Date"
+            delta_months = (
+                (today.year - r.vl_sample_collection_date.year) * 12 +
+                (today.month - r.vl_sample_collection_date.month)
             )
 
-    paginator = Paginator(refills, 10)
+            interval = 12
+
+            if is_suppressed is False:
+                r.vl_status = (
+                    "Repeat VL Due"
+                    if delta_months >= 3
+                    else "Awaiting Repeat VL"
+                )
+            else:
+                r.vl_status = (
+                    f"Eligible ({interval}-Month VL Due)"
+                    if delta_months >= interval
+                    else "VL Up to Date"
+                )
+
+        processed_refills.append(r)
+
+    # ================= PAGINATION FIX =================
+    paginator = Paginator(processed_refills, 10)
     page_number = request.GET.get("page")
     vl_refills = paginator.get_page(page_number)
 
@@ -1833,6 +1824,7 @@ def track_vl(request):
         "vl_refills": vl_refills,
         "today": today,
     })
+    
     
 @login_required
 def export_vl_view(request):
@@ -1848,7 +1840,7 @@ def export_vl_view(request):
         refills = refills.filter(facility_id=facility_id)
 
     if selected_case_manager:
-        refills = refills.filter(case_manager=selected_case_manager)
+        refills = refills.filter(case_manager__iexact=selected_case_manager.strip())
 
     refills = refills.order_by("-vl_sample_collection_date")
 
@@ -1871,7 +1863,6 @@ def export_vl_view(request):
 
         days_missed = r.days_missed
 
-        # ================= SINGLE SOURCE =================
         vl_eligible = r.is_vl_eligible_program
         is_suppressed = r.is_suppressed
 
@@ -1890,8 +1881,6 @@ def export_vl_view(request):
                 (today.month - r.vl_sample_collection_date.month)
             )
 
-            # ================= FIXED INTERVAL =================
-            # If suppressed = yearly VL, if unsuppressed = repeat after 3 months
             interval = 12
 
             if is_suppressed is False:
@@ -1900,7 +1889,6 @@ def export_vl_view(request):
                     if delta_months >= 3
                     else "Awaiting Repeat VL"
                 )
-
             else:
                 vl_status = (
                     f"Eligible ({interval}-Month VL Due)"
