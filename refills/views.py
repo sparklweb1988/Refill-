@@ -1885,13 +1885,14 @@ def export_vl_view(request):
             vl_status = "VL Result Pending"
 
         else:
-
             delta_months = (
                 (today.year - r.vl_sample_collection_date.year) * 12 +
                 (today.month - r.vl_sample_collection_date.month)
             )
 
-            interval = r.vl_interval_months
+            # ================= FIXED INTERVAL =================
+            # If suppressed = yearly VL, if unsuppressed = repeat after 3 months
+            interval = 12
 
             if is_suppressed is False:
                 vl_status = (
