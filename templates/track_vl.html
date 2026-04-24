@@ -128,12 +128,14 @@
 
     <!-- ================= RESULT ================= -->
     <td>
-        {% if refill.vl_result %}
+        {% if refill.vl_result is not None %}
+
             {% if refill.is_suppressed %}
                 <span class="text-success fw-bold">Suppressed (&lt;1000)</span>
             {% else %}
                 <span class="text-danger fw-bold">Not Suppressed (≥1000)</span>
             {% endif %}
+
         {% else %}
             <span class="text-muted">No Result</span>
         {% endif %}
@@ -175,12 +177,14 @@
     </div>
 
     <div><strong>VL Result:</strong>
-        {% if refill.vl_result %}
+        {% if refill.vl_result is not None %}
+
             {% if refill.is_suppressed %}
                 Suppressed
             {% else %}
                 Not Suppressed
             {% endif %}
+
         {% else %}
             No Result
         {% endif %}

@@ -87,9 +87,9 @@
             <td>{{ refill.case_manager }}</td>
             <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
 
-            <!-- ================= CLEAN VL STATUS ================= -->
+            <!-- ================= SIMPLIFIED VL STATUS ================= -->
             <td>
-              {% if refill.is_vl_eligible %}
+              {% if refill.is_vl_eligible_program %}
                   <span class="badge bg-success">Eligible</span>
               {% else %}
                   <span class="badge bg-secondary">Not Eligible</span>
@@ -158,9 +158,9 @@
           <p><strong>Case Manager:</strong> {{ refill.case_manager }}</p>
           <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
 
-          <!-- ================= CLEAN VL STATUS MOBILE ================= -->
+          <!-- ================= SIMPLIFIED VL STATUS MOBILE ================= -->
           <p><strong>VL Status:</strong>
-            {% if refill.is_vl_eligible %}
+            {% if refill.is_vl_eligible_program %}
                 <span class="text-success">Eligible</span>
             {% else %}
                 <span class="text-secondary">Not Eligible</span>
@@ -221,9 +221,9 @@
   <!-- Download Excel -->
   <div class="text-end mb-4">
     <a href="{% url 'export_refills' %}?{{ query_params }}"
-    class="btn btn-success btn-sm">
-    <i class="bi bi-download"></i> Download Excel
- </a>
+       class="btn btn-success btn-sm">
+       <i class="bi bi-download"></i> Download Excel
+    </a>
   </div>
 
 </div>

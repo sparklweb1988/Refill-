@@ -27,22 +27,20 @@ class RefillForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select'})
     )
 
+    eac_sessions_completed = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+
     class Meta:
         model = Refill
 
         fields = [
-
-            # ================= BASIC =================
             'facility', 'unique_id', 'age', 'sex',
-
-            # ================= ART / VL =================
             'art_start_date', 'vl_sample_collection_date', 'vl_result',
-
-            # ================= REFILL =================
             'last_pickup_date', 'months_of_refill_days',
             'current_regimen', 'case_manager',
 
-            # ================= TB CASCADE =================
             'tb_screening_date',
             'tb_screening_type',
             'tb_status',
@@ -50,44 +48,40 @@ class RefillForm(forms.ModelForm):
             'tb_result_received_date',
             'tb_diagnostic_result',
 
-            # ================= TRACKING =================
-            'tracking_date_1', 'tracking_date_2', 'tracking_date_3',
+            'tracking_date_1',
+            'tracking_date_2',
+            'tracking_date_3',
             'tracked_by',
 
-            # ================= MISSED / DISCONTINUED =================
             'patient_discontinued',
             'discontinued_reason',
             'discontinued_date',
-
-            # ================= RETURN =================
             'returned_date',
 
-            # ================= OTHERS =================
             'remark',
+
             'tpt_start_date',
             'tpt_completion_date',
+
+            'eac_start_date',
+            'eac_sessions_completed',
         ]
 
         widgets = {
-
-            # BASIC
             'facility': forms.Select(attrs={'class': 'form-select'}),
             'unique_id': forms.TextInput(attrs={'class': 'form-control'}),
             'age': forms.NumberInput(attrs={'class': 'form-control'}),
             'sex': forms.Select(attrs={'class': 'form-select'}),
 
-            # ART / VL
             'art_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'vl_sample_collection_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'vl_result': forms.NumberInput(attrs={'class': 'form-control'}),
 
-            # REFILL
             'last_pickup_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'months_of_refill_days': forms.NumberInput(attrs={'class': 'form-control'}),
             'current_regimen': forms.TextInput(attrs={'class': 'form-control'}),
             'case_manager': forms.TextInput(attrs={'class': 'form-control'}),
 
-            # TB CASCADE
             'tb_screening_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tb_screening_type': forms.Select(attrs={'class': 'form-select'}),
             'tb_status': forms.Select(attrs={'class': 'form-select'}),
@@ -95,29 +89,22 @@ class RefillForm(forms.ModelForm):
             'tb_result_received_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tb_diagnostic_result': forms.Select(attrs={'class': 'form-select'}),
 
-            # TRACKING
             'tracking_date_1': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tracking_date_2': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tracking_date_3': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tracked_by': forms.TextInput(attrs={'class': 'form-control'}),
 
-            # DISCONTINUED (TEXT FIELD FIXED)
             'patient_discontinued': forms.Select(attrs={'class': 'form-select'}),
-
-            'discontinued_reason': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter reason for discontinuation'
-            }),
-
+            'discontinued_reason': forms.TextInput(attrs={'class': 'form-control'}),
             'discontinued_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-
-            # RETURNED
             'returned_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
 
-            # OTHERS
             'remark': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+
             'tpt_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tpt_completion_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+
+            'eac_start_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
         }
 
     # ================= VL VALIDATION =================
@@ -130,13 +117,10 @@ class RefillForm(forms.ModelForm):
         try:
             vl = int(vl)
         except (ValueError, TypeError):
-            raise ValidationError("Viral Load must be a valid number.")
+            raise ValidationError("Viral Load must be a number.")
 
         if vl < 0:
-            raise ValidationError("Viral Load cannot be negative.")
-
-        if vl > 10000000:
-            raise ValidationError("Viral Load value is unrealistically high.")
+            raise ValidationError("VL cannot be negative.")
 
         return vl
 
@@ -149,12 +133,12 @@ class RefillForm(forms.ModelForm):
 
         if art and vl_date:
             if vl_date < art:
-                raise ValidationError("VL sample date cannot be before ART start date.")
+                raise ValidationError("VL date cannot be before ART start date.")
 
             if vl_date < art + timedelta(days=180):
                 self.add_error(
                     "vl_sample_collection_date",
-                    "VL should not be collected before 6 months on ART."
+                    "VL should not be done before 6 months on ART."
                 )
 
         return cleaned_data
@@ -163,15 +147,17 @@ class RefillForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
 
-        missed_reason = self.cleaned_data.get('missed_reason')
+        missed_reason = self.cleaned_data.get("missed_reason")
         if missed_reason:
             instance.remark = missed_reason
+
+        if self.cleaned_data.get("eac_sessions_completed") is None:
+            instance.eac_sessions_completed = 0
 
         if commit:
             instance.save()
 
         return instance
-
 
 class UploadExcelForm(forms.Form):
     file = forms.FileField(

@@ -79,9 +79,9 @@
 <!-- DOWNLOAD -->
 <div class="text-end mb-3">
     <a href="{% url 'export_track_refills' %}?{{ request.GET.urlencode }}"
-    class="btn btn-success btn-sm">
-    <i class="bi bi-download"></i> Download Excel
- </a>
+       class="btn btn-success btn-sm">
+       <i class="bi bi-download"></i> Download Excel
+    </a>
 </div>
 
 <!-- ================= DESKTOP ================= -->
@@ -122,9 +122,9 @@
     <td>{{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ r.next_appointment|date:"Y-m-d" }}</td>
 
-    <!-- ================= VL STATUS (SIMPLIFIED) ================= -->
+    <!-- ================= FIXED VL STATUS (ONLY ELIGIBLE / NOT ELIGIBLE) ================= -->
     <td>
-        {% if r.is_vl_eligible %}
+        {% if r.is_vl_eligible_program %}
             <span class="badge bg-success">Eligible</span>
         {% else %}
             <span class="badge bg-secondary">Not Eligible</span>
@@ -178,15 +178,13 @@
   <div><strong>Refill Date:</strong> {{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</div>
   <div><strong>Next:</strong> {{ r.next_appointment|date:"Y-m-d" }}</div>
 
-  <!-- ================= VL STATUS (SIMPLIFIED) ================= -->
+  <!-- ================= FIXED VL MOBILE ================= -->
   <div><strong>VL Status:</strong>
-
-      {% if r.is_vl_eligible %}
+      {% if r.is_vl_eligible_program %}
           <span class="text-success">Eligible</span>
       {% else %}
           <span class="text-secondary">Not Eligible</span>
       {% endif %}
-
   </div>
 
   <div><strong>VL Result:</strong>

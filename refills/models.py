@@ -26,6 +26,8 @@ class Facility(models.Model):
 
 
 
+
+
 class Refill(models.Model):
 
     SEX_CHOICES = (
@@ -184,68 +186,49 @@ class Refill(models.Model):
         if not self.next_appointment:
             return 0
         return max((timezone.now().date() - self.next_appointment).days, 0)
-
-    # ================= AGE-BASED VL INTERVAL =================
-    @property
-    def vl_interval_months(self):
-        return 6 if self.age is not None and self.age < 15 else 12
-
-    # ================= FIXED VL ELIGIBILITY =================
+        
+    # ================= SAFE VL =================
+        
+        
     @property
     def is_vl_eligible_program(self):
+
         today = timezone.now().date()
 
-        # TX_CURR ONLY
+        # 1. ACTIVE ONLY
         if self.current_art_status not in ["Active", "Active Restart", "Restart"]:
             return False
 
-        if self.patient_discontinued == 'Y':
+        # 2. NOT DISCONTINUED
+        if self.patient_discontinued == "Y":
             return False
 
-        # ART ≥ 6 MONTHS
+        # 3. MUST HAVE ART START
         if not self.art_start_date:
             return False
 
+        # 4. MUST BE ≥ 6 MONTHS ON ART (CRITICAL FIX)
         if (today - self.art_start_date).days < 180:
             return False
 
-        july_cutoff = date(2025, 7, 1)
-        april_cutoff = date(2025, 4, 1)
+        # 5. AGE RULE
+        interval_months = 6 if (self.age is not None and self.age < 15) else 12
 
-        # NO VL HISTORY → eligible
+        # 6. NO PREVIOUS VL → ELIGIBLE
         if not self.vl_sample_collection_date:
             return True
 
-        # EXCLUDE RECENT SAMPLES (JULY 2025+)
-        if self.vl_sample_collection_date >= july_cutoff:
+        # 7. DUE DATE CHECK
+        due_date = self.vl_sample_collection_date + relativedelta(months=interval_months)
 
-            # KEEP IF RESULT MISSING FROM APRIL 2025
-            if (
-                self.vl_result is None and
-                self.vl_sample_collection_date >= april_cutoff
-            ):
-                return True
+        return today >= due_date
 
-            return False
-
-        # AGE-BASED VL SCHEDULE
-        next_due = self.vl_sample_collection_date + relativedelta(
-            months=self.vl_interval_months
-        )
-
-        if today < next_due:
-            return False
-
-        return True
-
-    # ================= SUPPRESSION =================
     @property
     def is_suppressed(self):
         if self.vl_result is None:
             return None
         return self.vl_result < 1000
-
-    # ================= AHD =================
+        # ================= AHD =================
     @property
     def ahd(self):
         return self.current_art_status in ["Restart", "Active Restart"]

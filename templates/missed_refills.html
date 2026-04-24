@@ -82,9 +82,9 @@
             <small><strong>Days Missed:</strong> {{ refill.days_missed_display }}</small><br>
             <small><strong>IIT Status:</strong> {{ refill.iit_status_display }}</small><br>
 
-            <!-- ================= FIXED VL STATUS ================= -->
+            <!-- ================= FIXED VL ================= -->
             <small><strong>VL Status:</strong>
-                {% if refill.is_vl_eligible %}
+                {% if refill.is_vl_eligible_program %}
                     <span class="text-success">Eligible</span>
                 {% else %}
                     <span class="text-secondary">Not Eligible</span>
@@ -93,6 +93,7 @@
 
             <small><strong>VL Result:</strong>
                 {% if refill.vl_sample_collection_date %}
+
                     {% if refill.is_suppressed is not None %}
                         {% if refill.is_suppressed %}
                             <span class="text-success">Suppressed (&lt;1000)</span>
@@ -102,6 +103,7 @@
                     {% else %}
                         <span class="text-warning">Result Pending</span>
                     {% endif %}
+
                 {% else %}
                     <span class="text-muted">No VL Done</span>
                 {% endif %}
@@ -159,9 +161,9 @@
 
                             <td>{{ refill.iit_status_display }}</td>
 
-                            <!-- ================= FIXED VL STATUS ================= -->
+                            <!-- ================= FIXED VL ================= -->
                             <td>
-                                {% if refill.is_vl_eligible %}
+                                {% if refill.is_vl_eligible_program %}
                                     <span class="badge bg-success">Eligible</span>
                                 {% else %}
                                     <span class="badge bg-secondary">Not Eligible</span>
@@ -189,7 +191,7 @@
                             <td>
                                 <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}"
                                    class="btn btn-primary btn-sm">
-                                   Manage
+                                   Manage Refills
                                 </a>
                             </td>
 
@@ -213,9 +215,10 @@
     </div>
 
     <a href="{% url 'export_missed_refills' %}?{{ query_params }}"
-   class="btn btn-success btn-sm">
-   <i class="bi bi-download"></i> Download Excel
-</a>
+       class="btn btn-success btn-sm">
+       <i class="bi bi-download"></i> Download Excel
+    </a>
+
 </div>
 
 {% endblock %}

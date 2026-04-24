@@ -20,7 +20,11 @@
     </div>
 
     <!-- ================= DASHBOARD CARDS ================= -->
+
+
+    <!-- ================= Refills ================= -->
     <div class="row g-3">
+        <h4>Refills Cascade</h4>
 
         <!-- REFILLS -->
         <div class="col-md-3">
@@ -78,11 +82,11 @@
             </div>
         </div>
 
-        <!-- PROGRAM INDICATORS -->
+        <!-- PROGRAM -->
         <div class="col-md-3">
             <div class="card text-white bg-danger shadow text-center">
                 <div class="card-body">
-                    <h6>AHD (Restart Cases)</h6>
+                    <h6>Restarts</h6>
                     <h2>{{ ahd_count|default:0 }}</h2>
                 </div>
             </div>
@@ -97,31 +101,20 @@
             </div>
         </div>
 
-        <!-- ================= VL SECTION ================= -->
+        <!-- ================= VL ================= -->
+
+        
+       
+
+
+        <h4>VL Cascade</h4>
+
 
         <div class="col-md-3">
             <div class="card text-white bg-primary shadow text-center">
                 <div class="card-body">
-                    <h6>VL Eligibility (All Time)</h6>
-                    <h2>{{ vl_denominator|default:0 }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card text-white bg-secondary shadow text-center">
-                <div class="card-body">
-                    <h6>VL Eligibility (Quarterly)</h6>
-                    <h2>{{ quarterly_vl_denominator|default:0 }}</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card text-white bg-primary shadow text-center">
-                <div class="card-body">
-                    <h6>VL Samples (Quarter)</h6>
-                    <h2>{{ quarter_vl_collected|default:0 }}</h2>
+                    <h6>VL Samples (All Time)</h6>
+                    <h2>{{ vl_samples|default:0 }}</h2>
                 </div>
             </div>
         </div>
@@ -129,23 +122,14 @@
         <div class="col-md-3">
             <div class="card text-white bg-info shadow text-center">
                 <div class="card-body">
-                    <h6>VL Results (Quarter)</h6>
-                    <h2>{{ quarter_vl_result_received|default:0 }}</h2>
+                    <h6>VL Results (All Time)</h6>
+                    <h2>{{ vl_results|default:0 }}</h2>
                 </div>
             </div>
         </div>
 
-        <!--<div class="col-md-3">-->
-        <!--    <div class="card text-dark bg-success shadow text-center">-->
-        <!--        <div class="card-body">-->
-        <!--            <h6>VL Coverage %</h6>-->
-        <!--            <h2>{{ vl_coverage|default:0 }}%</h2>-->
-        <!--        </div>-->
-        <!--    </div>-->
-        <!--</div>-->
-
         <div class="col-md-3">
-            <div class="card text-white bg-info shadow text-center">
+            <div class="card text-white bg-success shadow text-center">
                 <div class="card-body">
                     <h6>VL Suppression %</h6>
                     <h2>{{ vl_suppression_rate|default:0 }}%</h2>
@@ -157,7 +141,7 @@
 
     <!-- ================= TB ================= -->
     <div class="mt-5">
-        <h4 class="mb-3">TB Cascade</h4>
+        <h4>TB Cascade</h4>
 
         <div class="row g-3">
 

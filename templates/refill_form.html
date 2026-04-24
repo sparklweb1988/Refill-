@@ -24,6 +24,13 @@
                     <form method="post">
                         {% csrf_token %}
 
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Please correct the errors below:</strong>
+                            {{ form.errors }}
+                        </div>
+                        {% endif %}
+
                         <!-- ================= PATIENT INFO ================= -->
                         <div class="card mb-3">
                             <div class="card-header bg-light">Patient Information</div>
@@ -79,14 +86,13 @@
                                     <div class="col-md-6">
                                         <label class="form-label">VL Eligibility</label><br>
 
-                                        {% if form.instance.is_vl_eligible %}
+                                        {% if form.instance.is_vl_eligible_program %}
                                             <span class="badge bg-success">Eligible</span>
                                         {% else %}
                                             <span class="badge bg-secondary">Not Eligible</span>
                                         {% endif %}
                                     </div>
 
-                                    <!-- ================= FIXED VL SUPPRESSION ================= -->
                                     <div class="col-md-6">
                                         <label class="form-label">VL Suppression</label><br>
 
@@ -153,6 +159,78 @@
                             </div>
                         </div>
 
+                        <!-- ================= EAC SECTION ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">EAC Section</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">EAC Status</label>
+                                        {{ form.eac_status }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">EAC Eligible</label><br>
+
+                                        {% if form.instance.eac %}
+                                            <span class="badge bg-warning text-dark">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not Eligible</span>
+                                        {% endif %}
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= AHD SECTION ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">AHD Section</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">AHD Eligibility</label><br>
+
+                                        {% if form.instance.ahd %}
+                                            <span class="badge bg-danger">Eligible</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not Eligible</span>
+                                        {% endif %}
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ================= TPT SECTION ================= -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">TPT Section</div>
+                            <div class="card-body">
+                                <div class="row g-3">
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">TPT Start Date</label>
+                                        {{ form.tpt_start_date }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">TPT Completion Date</label>
+                                        {{ form.tpt_completion_date }}
+                                    </div>
+
+                                    <div class="col-md-12">
+                                        <label class="form-label">TPT Status</label><br>
+                                        <span class="badge bg-info text-dark">
+                                            {{ form.instance.tpt_status }}
+                                        </span>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ================= REFILL ================= -->
                         <div class="card mb-3">
                             <div class="card-header bg-light">Refill Information</div>
@@ -210,12 +288,12 @@
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">Missed Reason</label>
+                                        <label class="form-label">Reason Missed</label>
                                         {{ form.missed_reason }}
                                     </div>
 
                                     <div class="col-md-12">
-                                        <label class="form-label">Remark</label>
+                                        <label class="form-label">Others (specify)</label>
                                         {{ form.remark }}
                                     </div>
 
@@ -235,13 +313,18 @@
                                     </div>
 
                                     <div class="col-md-6" id="reason_box" style="display:none;">
-                                        <label class="form-label">Discontinued Reason</label>
+                                        <label class="form-label">Reason Discontinued</label>
                                         {{ form.discontinued_reason }}
                                     </div>
 
                                     <div class="col-md-6" id="date_box" style="display:none;">
                                         <label class="form-label">Discontinued Date</label>
                                         {{ form.discontinued_date }}
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Returned Date</label>
+                                        {{ form.returned_date }}
                                     </div>
 
                                 </div>

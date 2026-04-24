@@ -364,38 +364,27 @@ def upload_excel(request):
     return render(request, 'upload.html', {'form': form})
 
 
+
+
+
+
 @login_required
 def dashboard(request):
+
     today = timezone.now().date()
-
-    # ================= QUARTER LOGIC =================
-    if today.month in [1, 2, 3]:
-        quarter_start = date(today.year, 1, 1)
-        quarter_end = date(today.year, 3, 31)
-    elif today.month in [4, 5, 6]:
-        quarter_start = date(today.year, 4, 1)
-        quarter_end = date(today.year, 6, 30)
-    elif today.month in [7, 8, 9]:
-        quarter_start = date(today.year, 7, 1)
-        quarter_end = date(today.year, 9, 30)
-    else:
-        quarter_start = date(today.year, 10, 1)
-        quarter_end = date(today.year, 12, 31)
-
-    week_end = today + timedelta(days=7)
-    month_start = today.replace(day=1)
-    month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
     facility_id = request.GET.get("facility")
     facilities = Facility.objects.all()
 
-    # ================= TX_CURR (BASE POPULATION) =================
+    # ================= BASE QUERYSET (MUST COME FIRST) =================
     refills = Refill.objects.filter(
         current_art_status__in=["Active", "Active Restart", "Restart"]
     )
 
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
+
+   
 
     # ================= COUNTERS =================
     daily_expected = 0
@@ -409,18 +398,16 @@ def dashboard(request):
     post_eac_vl_count = 0
     ahd_count = 0
 
-    # ================= VL POPULATIONS =================
-    vl_population = []
-    quarterly_population = []
+    # ================= VL =================
+    vl_samples = refills.filter(vl_sample_collection_date__isnull=False).count()
+    vl_results = refills.filter(vl_result__isnull=False).count()
 
-    # ================= VL METRICS =================
-    overall_vl_sample_collected = 0
-    overall_vl_result_received = 0
+    suppressed = refills.filter(
+        vl_result__isnull=False,
+        vl_result__lt=1000
+    ).count()
 
-    quarterly_vl_sample_collected = 0
-    quarterly_vl_result_received = 0
-
-    suppressed_count = 0
+    vl_suppression_rate = round((suppressed / vl_results) * 100, 1) if vl_results else 0
 
     # ================= TB =================
     tb_screened = 0
@@ -430,93 +417,55 @@ def dashboard(request):
     tb_positive = 0
     tb_negative = 0
 
-    # ================= MAIN LOOP =================
+    week_end = today + timedelta(days=7)
+    month_start = today.replace(day=1)
+    month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+    # ================= LOOP =================
     for r in refills:
 
-        # ---------------- AHD / EAC ----------------
         if r.ahd:
             ahd_count += 1
 
         if r.eac:
             eac_count += 1
 
-            if (
-                r.eac_sessions_completed >= 3 and
-                r.vl_result is not None and
-                r.vl_result >= 1000
-            ):
+            if r.eac_sessions_completed >= 3 and r.vl_result and r.vl_result >= 1000:
                 post_eac_vl_count += 1
 
-        # ---------------- APPOINTMENTS ----------------
-        if r.next_appointment and month_start <= r.next_appointment <= month_end:
-            monthly_expected += 1
+        if r.next_appointment:
 
-            if r.next_appointment == today:
-                daily_expected += 1
+            if month_start <= r.next_appointment <= month_end:
+                monthly_expected += 1
 
             if today <= r.next_appointment <= week_end:
                 weekly_expected += 1
 
-        if r.last_pickup_date == today:
-            daily_refills += 1
+            if r.next_appointment == today:
+                daily_expected += 1
 
-        days_missed = (
-            (today - r.next_appointment).days
-            if r.next_appointment and r.next_appointment < today
-            else 0
-        )
+            if r.last_pickup_date == today:
+                daily_refills += 1
 
-        if month_start <= r.next_appointment <= month_end and days_missed > 0:
-            monthly_missed_total += 1
+            if r.next_appointment < today:
+                days_missed = (today - r.next_appointment).days
 
-        if month_start <= r.next_appointment <= month_end and days_missed >= 28:
-            iit_total += 1
+                if days_missed > 0:
+                    monthly_missed_total += 1
 
-        # ================= VL DENOMINATOR (TX_CURR STANDARD) =================
-        if (
-            r.art_start_date and
-            (today - r.art_start_date).days >= 180 and
-            r.patient_discontinued != "Y"
-        ):
-            vl_population.append(r)
+                if days_missed >= 28:
+                    iit_total += 1
 
-            # Quarterly VL eligibility (time-based, NOT appointment-based)
-            if r.vl_sample_collection_date:
-                next_due = r.vl_sample_collection_date + relativedelta(
-                    months=r.vl_interval_months
-                )
-
-                if quarter_start <= next_due <= quarter_end:
-                    quarterly_population.append(r)
-
-        # ================= VL SAMPLE COLLECTION =================
-        if r.vl_sample_collection_date:
-            overall_vl_sample_collected += 1
-
-            if quarter_start <= r.vl_sample_collection_date <= quarter_end:
-                quarterly_vl_sample_collected += 1
-
-        # ================= VL RESULT =================
-        if r.vl_result is not None:
-            overall_vl_result_received += 1
-
-            if quarter_start <= r.vl_sample_collection_date <= quarter_end:
-                quarterly_vl_result_received += 1
-
-            if r.vl_result < 1000:
-                suppressed_count += 1
-
-        # ================= TB =================
         if r.tb_screening_date and month_start <= r.tb_screening_date <= month_end:
             tb_screened += 1
 
         if r.tb_status == "Presumptive TB":
             tb_presumptive += 1
 
-        if r.tb_sample_collection_date and month_start <= r.tb_sample_collection_date <= month_end:
+        if r.tb_sample_collection_date:
             tb_sample_collected += 1
 
-        if r.tb_result_received_date and month_start <= r.tb_result_received_date <= month_end:
+        if r.tb_result_received_date:
             tb_result_received += 1
 
         if r.tb_diagnostic_result == "Positive":
@@ -524,27 +473,11 @@ def dashboard(request):
         elif r.tb_diagnostic_result == "Negative":
             tb_negative += 1
 
-    # ================= FINAL VL METRICS =================
-    vl_denominator = len(vl_population)
-    quarterly_vl_denominator = len(quarterly_population)
-
-    vl_coverage = (
-        round((quarterly_vl_sample_collected / quarterly_vl_denominator) * 100, 1)
-        if quarterly_vl_denominator else 0
-    )
-
-    vl_suppression_rate = (
-        round((suppressed_count / overall_vl_result_received) * 100, 1)
-        if overall_vl_result_received else 0
-    )
-
-    vl_coverage_gap = max(0, quarterly_vl_denominator - quarterly_vl_sample_collected)
-
     return render(request, "dashboard.html", {
         "facilities": facilities,
         "selected_facility": facility_id,
 
-        # ================= APPOINTMENTS =================
+        # APPOINTMENTS
         "daily_expected": daily_expected,
         "daily_refills": daily_refills,
         "weekly_expected": weekly_expected,
@@ -552,23 +485,19 @@ def dashboard(request):
         "monthly_missed_total": monthly_missed_total,
         "iit_total": iit_total,
 
-        # ================= PROGRAM =================
+        # PROGRAM
         "eac_count": eac_count,
         "post_eac_vl_count": post_eac_vl_count,
         "ahd_count": ahd_count,
 
-        # ================= VL =================
-        "vl_denominator": vl_denominator,
-        "quarterly_vl_denominator": quarterly_vl_denominator,
-
-        "quarter_vl_collected": quarterly_vl_sample_collected,
-        "quarter_vl_result_received": quarterly_vl_result_received,
-
-        "vl_coverage": vl_coverage,
-        "vl_coverage_gap": vl_coverage_gap,
+        # VL
+        "vl_samples": vl_samples,
+        "vl_results": vl_results,
         "vl_suppression_rate": vl_suppression_rate,
+        "suppressed": suppressed,
+       
 
-        # ================= TB =================
+        # TB
         "tb_screened": tb_screened,
         "tb_presumptive": tb_presumptive,
         "tb_sample_collected": tb_sample_collected,
@@ -576,8 +505,10 @@ def dashboard(request):
         "tb_positive": tb_positive,
         "tb_negative": tb_negative,
     })
+    
+    
+    
 # ================================
-
 @login_required
 def refill_list(request):
 
@@ -606,7 +537,16 @@ def refill_list(request):
     search_unique_id = request.GET.get("search_unique_id")
 
     facilities = Facility.objects.all()
-    case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
+
+    case_managers_qs = (
+        Refill.objects
+        .exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
+
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
 
     refills = Refill.objects.all()
 
@@ -614,62 +554,41 @@ def refill_list(request):
         refills = refills.filter(facility_id=facility_id)
 
     if selected_case_manager:
-        refills = refills.filter(case_manager=selected_case_manager)
+        refills = refills.filter(case_manager__iexact=selected_case_manager.strip())
 
     if start_date:
+        start_date = timezone.datetime.strptime(start_date, "%Y-%m-%d").date()
         refills = refills.filter(next_appointment__gte=start_date)
 
     if end_date:
+        end_date = timezone.datetime.strptime(end_date, "%Y-%m-%d").date()
         refills = refills.filter(next_appointment__lte=end_date)
 
     if search_unique_id:
         refills = refills.filter(unique_id__icontains=search_unique_id.strip())
 
-    # ================= PROCESS PATIENTS =================
+    # ================= PROCESS =================
     for r in refills:
-
-        # ---------------- DAYS MISSED ----------------
-        r.days_missed_display = (
-            (today - r.next_appointment).days
-            if r.next_appointment and r.next_appointment < today
-            else 0
-        )
-
+        r.days_missed_display = r.days_missed
         r.missed_appointment = r.days_missed_display > 0
 
-        # =====================================================
-        # ✅ VL STATUS (TRUTH SOURCE = MODEL PROPERTY)
-        # =====================================================
         r.vl_status = "Eligible" if r.is_vl_eligible_program else "Not Eligible"
 
-        # =====================================================
-        # QUARTER VL STATUS (PROGRAM ACCURATE)
-        # =====================================================
         if r.is_vl_eligible_program:
-
-            # never had VL
             if not r.vl_sample_collection_date:
                 r.vl_quarter_status = "Due (No VL Ever)"
-
-            # sample outside quarter
             elif r.vl_sample_collection_date < quarter_start:
                 r.vl_quarter_status = "Due (Overdue)"
-
-            # sample inside quarter
             elif quarter_start <= r.vl_sample_collection_date <= quarter_end:
                 r.vl_quarter_status = "Done This Quarter"
-
             else:
                 r.vl_quarter_status = "Pending"
         else:
             r.vl_quarter_status = "Not Eligible"
 
-    # ================= PERIOD FILTERS =================
-    daily_expected = refills.filter(next_appointment=today)
-
-    weekly_expected = refills.filter(next_appointment__range=[today, week_end])
-
-    monthly_expected = refills.filter(
+    daily_qs = refills.filter(next_appointment=today)
+    weekly_qs = refills.filter(next_appointment__range=[today, week_end])
+    monthly_qs = refills.filter(
         next_appointment__year=today.year,
         next_appointment__month=today.month
     )
@@ -677,15 +596,15 @@ def refill_list(request):
     periods = [
         {
             "name": "Daily",
-            "page_obj": Paginator(daily_expected, 10).get_page(request.GET.get("daily_page"))
+            "page_obj": Paginator(daily_qs, 10).get_page(request.GET.get("daily_page"))
         },
         {
             "name": "Weekly",
-            "page_obj": Paginator(weekly_expected, 10).get_page(request.GET.get("weekly_page"))
+            "page_obj": Paginator(weekly_qs, 10).get_page(request.GET.get("weekly_page"))
         },
         {
             "name": "Monthly",
-            "page_obj": Paginator(monthly_expected, 10).get_page(request.GET.get("monthly_page"))
+            "page_obj": Paginator(monthly_qs, 10).get_page(request.GET.get("monthly_page"))
         },
     ]
 
@@ -694,11 +613,12 @@ def refill_list(request):
         "case_managers": case_managers,
         "selected_facility": facility_id,
         "selected_case_manager": selected_case_manager,
-        "periods": periods,
-        "today": today,
         "search_unique_id": search_unique_id,
         "query_params": request.GET.urlencode(),
+        "periods": periods,
+        "today": today,
     })
+    
     
 @login_required
 def export_refills_view(request):
@@ -771,15 +691,17 @@ def export_refills_view(request):
 
         next_appointment = refill.next_appointment
 
-        # SAME LOGIC AS VIEW
         days_missed = (
             (today - next_appointment).days
             if next_appointment and next_appointment < today
             else 0
         )
 
-        # SAME VL SOURCE AS VIEW
-        vl_eligibility = "Eligible" if refill.is_vl_eligible_program else "Not Eligible"
+        # ================= VL FIX (ONLY CHANGE) =================
+        vl_eligibility = (
+            "Eligible (Program)" if refill.is_vl_eligible_program
+            else "Not Eligible"
+        )
 
         ahd_status = "Eligible" if refill.current_art_status == "Restart" else "Not Eligible"
 
@@ -829,7 +751,6 @@ def export_refills_view(request):
 
 
 
-
 @login_required
 def refill_create_or_update(request, pk=None):
     today = timezone.now().date()
@@ -837,112 +758,188 @@ def refill_create_or_update(request, pk=None):
 
     if request.method == "POST":
         form = RefillForm(request.POST, instance=refill)
+
         if form.is_valid():
             refill = form.save(commit=False)
 
             # ------------------ Next Appointment ------------------
             if refill.last_pickup_date and refill.months_of_refill_days:
-                refill.next_appointment = refill.last_pickup_date + timedelta(days=float(refill.months_of_refill_days)*30)
+                days = int(float(refill.months_of_refill_days) * 30)
+                refill.next_appointment = (
+                    refill.last_pickup_date + timedelta(days=days)
+                )
             else:
                 refill.next_appointment = None
 
             # ------------------ Missed Appointment ------------------
-            refill.missed_appointment = refill.next_appointment < today if refill.next_appointment else False
+            refill.missed_appointment = (
+                refill.next_appointment < today
+                if refill.next_appointment else False
+            )
 
-            # ------------------ TPT expected completion ------------------
+            # ------------------ TPT Expected Completion ------------------
             if refill.tpt_start_date:
-                refill.tpt_expected_completion = refill.tpt_start_date + timedelta(days=180)
+                refill.tpt_expected_completion = (
+                    refill.tpt_start_date + timedelta(days=180)
+                )
+            else:
+                refill.tpt_expected_completion = None
 
             # ------------------ Save ------------------
             refill.save()
-            return redirect("refill_list")
+            messages.success(request, "Refill record saved successfully.")
+            return redirect("track_refills")
+
+        else:
+            messages.error(request, "Please fix the errors below.")
+
     else:
         form = RefillForm(instance=refill)
 
-    return render(request, "refill_form.html", {"form": form, "today": today})
+    return render(
+        request,
+        "refill_form.html",
+        {
+            "form": form,
+            "today": today,
+        }
+    )
 
 
-
-
-
-
-
+# ==========================================================
+# ADD / UPDATE USING UNIQUE ID
+# ==========================================================
+@login_required
 def refill_add_or_update(request, unique_id=None):
     """
     Handles adding a new refill or updating an existing record.
     Allows updating tracking, remarks, or discontinuation even if
     last pickup / refill is empty.
     """
-    # Try to get existing Refill for this unique_id
+
     if unique_id:
-        refill = Refill.objects.filter(unique_id=unique_id).order_by('-last_pickup_date').first()
+        refill = (
+            Refill.objects
+            .filter(unique_id=unique_id)
+            .order_by("-last_pickup_date")
+            .first()
+        )
     else:
         refill = None
 
-    if request.method == 'POST':
+    today = timezone.now().date()
+
+    if request.method == "POST":
         form = RefillForm(request.POST, instance=refill)
+
         if form.is_valid():
             refill_instance = form.save(commit=False)
 
-            # If next_appointment is empty but last_pickup_date exists, auto-calc next appointment
-            if refill_instance.last_pickup_date and not refill_instance.next_appointment:
-                refill_instance.next_appointment = refill_instance.last_pickup_date + timezone.timedelta(
-                    days=(refill_instance.months_of_refill_days or 0) * 30
+            # ------------------ Next Appointment ------------------
+            if (
+                refill_instance.last_pickup_date
+                and refill_instance.months_of_refill_days
+            ):
+                days = int(float(refill_instance.months_of_refill_days) * 30)
+                refill_instance.next_appointment = (
+                    refill_instance.last_pickup_date
+                    + timedelta(days=days)
                 )
 
+            # ------------------ Missed Appointment ------------------
+            refill_instance.missed_appointment = (
+                refill_instance.next_appointment < today
+                if refill_instance.next_appointment else False
+            )
+
+            # ------------------ TPT Expected Completion ------------------
+            if refill_instance.tpt_start_date:
+                refill_instance.tpt_expected_completion = (
+                    refill_instance.tpt_start_date + timedelta(days=180)
+                )
+            else:
+                refill_instance.tpt_expected_completion = None
+
             refill_instance.save()
-            messages.success(request, 'Refill record saved successfully.')
-            return redirect('refill_list')
+
+            messages.success(
+                request,
+                "Refill record saved successfully."
+            )
+            return redirect("track_refills")
+
         else:
-            messages.error(request, 'Please fix the errors below.')
+            messages.error(request, "Please fix the errors below.")
 
     else:
-        # GET request
         form = RefillForm(instance=refill)
 
-    # Latest TB info (for your form)
-    latest_tb = getattr(refill, 'latest_tb', None)
+    latest_tb = getattr(refill, "latest_tb", None)
 
     context = {
-        'form': form,
-        'latest_tb': latest_tb,
+        "form": form,
+        "latest_tb": latest_tb,
+        "today": today,
     }
-    return render(request, 'refill_form.html', context)
+
+    return render(request, "refill_form.html", context)
 
 
-
-
-
+# ==========================================================
+# CREATE REFILL
+# ==========================================================
 @login_required
 def refill_create(request, unique_id=None):
+
     if unique_id:
-        # Fetch the refill by unique_id if passed
         refill = get_object_or_404(Refill, unique_id=unique_id)
     else:
-        refill = None  # New refill if no unique_id is passed
+        refill = None
 
-    today = timezone.now().date()  # ensure datetime.date object
+    today = timezone.now().date()
 
-    if refill:
-        # Ensure next_appointment is a date
-        if isinstance(refill.next_appointment, datetime):
-            refill_next_appointment = refill.next_appointment.date()
-        else:
-            refill_next_appointment = refill.next_appointment
+    if request.method == "POST":
 
-        if refill_next_appointment and refill_next_appointment < today:
-            # Optional: any logic for past appointments
-            print("This refill's next appointment is in the past.")
-
-    if request.method == 'POST':
         if refill:
             form = RefillForm(request.POST, instance=refill)
         else:
             form = RefillForm(request.POST)
 
         if form.is_valid():
-            form.save()  # vl_status is read-only now
-            return redirect('refill_list')
+            refill_obj = form.save(commit=False)
+
+            # ------------------ Next Appointment ------------------
+            if (
+                refill_obj.last_pickup_date
+                and refill_obj.months_of_refill_days
+            ):
+                days = int(float(refill_obj.months_of_refill_days) * 30)
+                refill_obj.next_appointment = (
+                    refill_obj.last_pickup_date
+                    + timedelta(days=days)
+                )
+
+            # ------------------ Missed Appointment ------------------
+            refill_obj.missed_appointment = (
+                refill_obj.next_appointment < today
+                if refill_obj.next_appointment else False
+            )
+
+            # ------------------ TPT Expected Completion ------------------
+            if refill_obj.tpt_start_date:
+                refill_obj.tpt_expected_completion = (
+                    refill_obj.tpt_start_date + timedelta(days=180)
+                )
+            else:
+                refill_obj.tpt_expected_completion = None
+
+            refill_obj.save()
+
+            messages.success(request, "Refill record saved successfully.")
+            return redirect("track_refills")
+
+        else:
+            messages.error(request, "Please fix the errors below.")
 
     else:
         if refill:
@@ -950,46 +947,79 @@ def refill_create(request, unique_id=None):
         else:
             form = RefillForm()
 
-    return render(request, 'refill_form.html', {'form': form})
+    return render(
+        request,
+        "refill_form.html",
+        {
+            "form": form,
+            "today": today,
+        }
+    )
 
 
-
-
-# ================= REFILL UPDATE =================
-
-
+# ==========================================================
+# UPDATE REFILL
+# ==========================================================
 @login_required
 def refill_update(request, pk):
     """
     Update an existing refill and auto-recalculate next appointment.
-    Supports single-field updates (e.g., only 'remark').
+    Supports single-field updates.
     """
+
     refill = get_object_or_404(Refill, pk=pk)
+    today = timezone.now().date()
+
     form = RefillForm(request.POST or None, instance=refill)
 
-    if form.is_valid():
-        refill = form.save(commit=False)
+    if request.method == "POST":
 
-        # Auto recalculate next appointment if last pickup or refill duration changed
-        if refill.last_pickup_date and refill.months_of_refill_days:
-            days = float(refill.months_of_refill_days) * 30
-            refill.next_appointment = refill.last_pickup_date + timedelta(days=days)
+        if form.is_valid():
+            refill = form.save(commit=False)
 
-        # Auto update TPT expected completion
-        if refill.tpt_start_date:
-            refill.tpt_expected_completion = refill.tpt_start_date + timedelta(days=180)
+            # ------------------ Next Appointment ------------------
+            if (
+                refill.last_pickup_date
+                and refill.months_of_refill_days
+            ):
+                days = int(float(refill.months_of_refill_days) * 30)
+                refill.next_appointment = (
+                    refill.last_pickup_date
+                    + timedelta(days=days)
+                )
 
-        refill.save()  # saves all changes
-        return redirect('refill_list')  # or your dashboard
+            # ------------------ Missed Appointment ------------------
+            refill.missed_appointment = (
+                refill.next_appointment < today
+                if refill.next_appointment else False
+            )
+
+            # ------------------ TPT Expected Completion ------------------
+            if refill.tpt_start_date:
+                refill.tpt_expected_completion = (
+                    refill.tpt_start_date + timedelta(days=180)
+                )
+            else:
+                refill.tpt_expected_completion = None
+
+            refill.save()
+
+            messages.success(request, "Refill updated successfully.")
+            return redirect("track_refills")
+
+        else:
+            messages.error(request, "Please fix the errors below.")
 
     context = {
-        "form": form
+        "form": form,
+        "today": today,
     }
+
     return render(request, "refill_form.html", context)
+
+
+
 # ================= REFILL ADD OR UPDATE =================
-
-
-
 @login_required
 def track_refills(request):
 
@@ -1015,9 +1045,17 @@ def track_refills(request):
             end_date = None
 
     facilities = Facility.objects.all()
-    case_managers = Refill.objects.values_list("case_manager", flat=True).distinct()
 
-    # ================= MONTH RANGE =================
+    case_managers_qs = (
+        Refill.objects
+        .exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
+
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
+
     month_start = today.replace(day=1)
     month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
@@ -1037,96 +1075,63 @@ def track_refills(request):
         refills = refills.filter(facility_id=facility_id)
 
     if selected_case_manager:
-        refills = refills.filter(case_manager=selected_case_manager)
-
-    filtered_refills = []
+        refills = refills.filter(case_manager__iexact=selected_case_manager.strip())
 
     # ================= MAIN LOOP =================
     for r in refills:
 
-        # ---------------- DAYS MISSED ----------------
-        r.days_missed_display = (
-            (today - r.next_appointment).days
-            if r.next_appointment and r.next_appointment < today
-            else 0
-        )
+        r.days_missed_display = r.days_missed
 
         # =====================================================
-        # 🔥 STANDARDIZED VL ELIGIBILITY SOURCE
+        # 🔥 VL LOGIC (CLEAN + SINGLE SOURCE OF TRUTH)
         # =====================================================
         vl_eligible = r.is_vl_eligible_program
+        is_suppressed = r.is_suppressed
 
-        # =====================================================
-        # 🧠 SUPPRESSION STATE (CLINICAL LOGIC)
-        # =====================================================
-        is_suppressed = (
-            r.vl_result is not None and r.vl_result < 1000
-        )
-
-        # =====================================================
-        # 🔬 VL STATUS (CLEAN PROGRAM LOGIC)
-        # =====================================================
-
+        # ================= VL STATUS =================
         if not vl_eligible:
+
             if r.patient_discontinued == "Y":
                 r.vl_status = "Not Eligible (Discontinued)"
 
             elif r.days_missed_display >= 28:
                 r.vl_status = "Not Eligible (IIT)"
 
-            elif r.art_start_date and (today - r.art_start_date).days < 180:
-                r.vl_status = "Not Eligible (ART < 6 months)"
-
             else:
                 r.vl_status = "Not Eligible"
 
         else:
-            # ================= NEVER HAD VL =================
+
             if not r.vl_sample_collection_date:
                 r.vl_status = "Eligible (No VL Yet)"
 
-            # ================= HAS VL =================
-            else:
+            elif r.vl_result is None:
+                r.vl_status = "VL Pending"
 
-                if r.vl_result is None:
-                    r.vl_status = "VL Pending"
+            elif is_suppressed:
 
-                elif is_suppressed:
-                    # suppressed clients
-                    delta = relativedelta(today, r.vl_sample_collection_date)
-                    months_since = delta.years * 12 + delta.months
+                months_since = (
+                    (today.year - r.vl_sample_collection_date.year) * 12 +
+                    (today.month - r.vl_sample_collection_date.month)
+                )
 
-                    if months_since >= 3:
-                        r.vl_status = "Repeat VL Due (Suppressed)"
-                    else:
-                        r.vl_status = "Monitoring Suppressed"
-
+                if months_since >= 3:
+                    r.vl_status = "Repeat VL Due (Suppressed)"
                 else:
-                    # suppressed NOT
-                    if vl_eligible:
-                        r.vl_status = "Routine VL Due"
-                    else:
-                        r.vl_status = "VL Up to Date"
+                    r.vl_status = "Monitoring Suppressed"
 
-        # =====================================================
-        # 🧾 DISPLAY CLEANING (UNCHANGED)
-        # =====================================================
+            else:
+                r.vl_status = "Repeat VL Due (Unsuppressed)"
+
+        # ================= CLEAN DISPLAY =================
         r.age_display = r.age or "-"
 
-        r.tracking_date_1_display = r.tracking_date_1
-        r.tracking_date_2_display = r.tracking_date_2
-        r.tracking_date_3_display = r.tracking_date_3
-
         r.patient_discontinued_display = (
-            dict(r._meta.get_field('patient_discontinued').choices).get(
-                r.patient_discontinued, ""
-            ) if r.patient_discontinued else "-"
+            dict(r._meta.get_field("patient_discontinued").choices)
+            .get(r.patient_discontinued, "-")
         )
 
-        filtered_refills.append(r)
-
-    # ================= PAGINATION =================
-    paginator = Paginator(filtered_refills, 10)
+    paginator = Paginator(refills, 10)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -1138,6 +1143,9 @@ def track_refills(request):
         "today": today,
         "page_obj": page_obj,
     })
+    
+    
+    
 @login_required
 def export_track_refills_view(request):
 
@@ -1201,56 +1209,42 @@ def export_track_refills_view(request):
         'Returned Date',
     ]
     ws.append(headers)
-
     for r in refills:
 
         r.calculate_dates()
 
-        next_appointment = r.next_appointment
-        last_pickup = r.last_pickup_date
+    next_appointment = r.next_appointment
+    last_pickup = r.last_pickup_date
 
-        # SAME AS VIEW
-        days_missed = (
-            (today - next_appointment).days
-            if next_appointment and next_appointment < today
-            else 0
-        )
+    days_missed = (
+        (today - next_appointment).days
+        if next_appointment and next_appointment < today
+        else 0
+    )
 
-        # SAME VL LOGIC AS VIEW
-        vl_eligible = r.is_vl_eligible_program
+    # ================= VL FIX (ONLY SOURCE OF TRUTH) =================
+    vl_eligible = r.is_vl_eligible_program
+    is_suppressed = r.is_suppressed
 
-        is_suppressed = (
-            r.vl_result is not None and r.vl_result < 1000
-        )
-
-        if not vl_eligible:
-            if r.patient_discontinued == "Y":
-                vl_status = "Not Eligible (Discontinued)"
-            elif days_missed >= 28:
-                vl_status = "Not Eligible (IIT)"
-            elif r.art_start_date and (today - r.art_start_date).days < 180:
-                vl_status = "Not Eligible (ART < 6 months)"
-            else:
-                vl_status = "Not Eligible"
+    if not vl_eligible:
+        if r.patient_discontinued == "Y":
+            vl_status = "Not Eligible (Discontinued)"
+        elif days_missed >= 28:
+            vl_status = "Not Eligible (IIT)"
         else:
-            if not r.vl_sample_collection_date:
-                vl_status = "Eligible (No VL Yet)"
-            else:
-                if r.vl_result is None:
-                    vl_status = "VL Pending"
-                elif is_suppressed:
-                    delta = relativedelta(today, r.vl_sample_collection_date)
-                    months_since = delta.years * 12 + delta.months
+            vl_status = "Not Eligible"
 
-                    if months_since >= 3:
-                        vl_status = "Repeat VL Due (Suppressed)"
-                    else:
-                        vl_status = "Monitoring Suppressed"
-                else:
-                    if vl_eligible:
-                        vl_status = "Routine VL Due"
-                    else:
-                        vl_status = "VL Up to Date"
+    else:
+        if not r.vl_sample_collection_date:
+            vl_status = "Eligible (No VL Yet)"
+
+        elif r.vl_result is None:
+            vl_status = "VL Pending"
+
+        elif is_suppressed:
+            vl_status = "Monitoring Suppressed"
+        else:
+            vl_status = "Repeat VL Due (Unsuppressed)"
 
         ws.append([
             r.unique_id,
@@ -1284,16 +1278,6 @@ def export_track_refills_view(request):
 
 
 
-# @login_required
-# def export_all_track_refills_excel(request):
-#     """
-#     Export all refills for tracking to Excel.
-#     """
-#     refills = Refill.objects.all()  # download ALL data
-#     return export_track_refills_to_excel(refills)
-
-
-
 @login_required
 def daily_refill_list(request):
 
@@ -1304,15 +1288,19 @@ def daily_refill_list(request):
 
     facilities = Facility.objects.all()
 
-    refills = Refill.objects.filter(next_appointment=today)
+    refills = Refill.objects.filter(
+        next_appointment=today
+    ).select_related("facility")
 
     if facility_id:
         refills = refills.filter(facility_id=facility_id)
 
     if selected_case_manager:
-        refills = refills.filter(case_manager=selected_case_manager)
+        refills = refills.filter(
+            case_manager__iexact=selected_case_manager.strip()
+        )
 
-    # ================= CLEAN CASE MANAGERS =================
+    # ================= CASE MANAGERS =================
     case_managers = (
         Refill.objects
         .exclude(case_manager__isnull=True)
@@ -1321,76 +1309,47 @@ def daily_refill_list(request):
         .distinct()
     )
 
-    case_managers = sorted(set(cm.strip() for cm in case_managers if cm))
+    case_managers = sorted({cm.strip() for cm in case_managers if cm})
 
-    # ================= ENRICH OBJECTS =================
+    # ================= ENRICH =================
     for r in refills:
 
-        # ---------------- AGE ----------------
-        r.age_display = r.age if r.age is not None else "Unknown"
+        r.age_display = r.age or "Unknown"
+        r.tb_status_display = r.tb_status or "Not Screened"
+        r.days_missed_display = r.days_missed
 
-        # ---------------- TB ----------------
-        r.tb_status_display = r.tb_status if r.tb_status else "Not Screened"
-
-        # ---------------- MISSED DAYS ----------------
-        r.days_missed_display = (
-            (today - r.next_appointment).days
-            if r.next_appointment and r.next_appointment < today
-            else 0
-        )
-
-        # =====================================================
-        # 🔥 SINGLE SOURCE OF TRUTH (PROGRAM VL ELIGIBILITY)
-        # =====================================================
+        # ================= VL (SINGLE SOURCE OF TRUTH) =================
         vl_eligible = r.is_vl_eligible_program
+        is_suppressed = r.is_suppressed
 
-        # =====================================================
-        # 🧠 SUPPRESSION LOGIC (ONLY RESULT BASED)
-        # =====================================================
-        is_suppressed = (
-            r.vl_result is not None and r.vl_result < 1000
-        )
-
-        # =====================================================
-        # 🔬 CLEAN VL STATUS (PEPFAR STYLE LOGIC)
-        # =====================================================
-
+        # ================= VL STATUS =================
         if not vl_eligible:
 
-            if r.patient_discontinued == 'Y':
+            if r.patient_discontinued == "Y":
                 r.vl_status_display = "Not Eligible (Discontinued)"
 
             elif r.days_missed_display >= 28:
                 r.vl_status_display = "Not Eligible (IIT)"
-
-            elif r.art_start_date and (today - r.art_start_date).days < 180:
-                r.vl_status_display = "Not Eligible (ART < 6 Months)"
 
             else:
                 r.vl_status_display = "Not Eligible"
 
         else:
 
-            # ================= NO VL HISTORY =================
             if not r.vl_sample_collection_date:
-                r.vl_status_display = "Eligible (VL Due)"
+                r.vl_status_display = "Eligible (No VL Yet)"
 
-            # ================= HAS VL =================
+            elif r.vl_result is None:
+                r.vl_status_display = "VL Pending"
+
+            elif is_suppressed:
+                r.vl_status_display = "Suppressed (<1000)"
+
             else:
+                r.vl_status_display = "Not Suppressed (≥1000)"
 
-                if r.vl_result is None:
-                    r.vl_status_display = "VL Pending"
-
-                elif is_suppressed:
-                    r.vl_status_display = "Suppressed (<1000)"
-
-                else:
-                    r.vl_status_display = "Not Suppressed (≥1000)"
-
-        # ================= EAC =================
+        # ================= OTHER PROGRAM STATUS =================
         r.eac_status_display = r.eac_status
-
-        # ================= AHD =================
         r.ahd_display = "Eligible" if r.ahd else "Not Eligible"
 
     return render(request, "daily_refill_list.html", {
@@ -1400,120 +1359,6 @@ def daily_refill_list(request):
         "selected_case_manager": selected_case_manager,
         "today": today,
         "refills": refills,
-    })
-    
-    
-@login_required
-def missed_refills(request):
-    today = timezone.now().date()
-
-    facility_id = request.GET.get("facility")
-    case_manager = request.GET.get("case_manager")
-    start_date = request.GET.get("start_date")
-    end_date = request.GET.get("end_date")
-    search_unique_id = request.GET.get("search_unique_id")
-
-    # ================= BASE QUERYSET =================
-    refills = Refill.objects.filter(
-        current_art_status__in=["Active", "Active Restart", "Restart"]
-    ).select_related("facility")
-
-    # ================= FILTERS =================
-    if facility_id:
-        refills = refills.filter(facility_id=facility_id)
-
-    if case_manager:
-        refills = refills.filter(case_manager__iexact=case_manager.strip())
-
-    if search_unique_id:
-        refills = refills.filter(unique_id__icontains=search_unique_id.strip())
-
-    if start_date:
-        try:
-            refills = refills.filter(next_appointment__gte=start_date)
-        except:
-            pass
-
-    if end_date:
-        try:
-            refills = refills.filter(next_appointment__lte=end_date)
-        except:
-            pass
-
-    # ================= ONLY MISSED =================
-    missed_list = refills.filter(
-        next_appointment__lt=today
-    ).order_by("next_appointment")
-
-    # ================= ENRICH DATA =================
-    for r in missed_list:
-
-        # days missed (use model property if available)
-        r.days_missed_display = r.days_missed
-
-        # IIT status (already standardized in model)
-        r.iit_status_display = r.iit_status
-
-        # =====================================================
-        # ✅ UNIFIED VL LOGIC (PROGRAM STANDARD)
-        # =====================================================
-
-        if not r.is_vl_eligible_program:
-            r.vl_status_display = "Not Eligible"
-
-        else:
-            # ART eligible population
-
-            if not r.vl_sample_collection_date:
-                r.vl_status_display = "Eligible (No VL Yet)"
-
-            else:
-                # Age-based interval rule
-                interval_months = 6 if (r.age and r.age < 15) else 12
-
-                delta_months = (
-                    (today.year - r.vl_sample_collection_date.year) * 12 +
-                    (today.month - r.vl_sample_collection_date.month)
-                )
-
-                if delta_months >= interval_months:
-                    r.vl_status_display = "Eligible (Due)"
-                else:
-                    r.vl_status_display = "Not Due"
-
-    # ================= PAGINATION =================
-    paginator = Paginator(missed_list, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    # ================= CASE MANAGERS =================
-    case_managers_qs = (
-        Refill.objects.exclude(case_manager__isnull=True)
-        .exclude(case_manager__exact="")
-        .values_list("case_manager", flat=True)
-        .distinct()
-    )
-
-    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm})
-
-    query_params = request.GET.copy()
-    query_params.pop("page", None)
-
-    return render(request, "missed_refills.html", {
-        "page_obj": page_obj,
-        "today": today,
-        "total_missed": missed_list.count(),
-
-        "facilities": Facility.objects.all(),
-        "case_managers": case_managers,
-
-        "selected_facility": facility_id,
-        "selected_case_manager": case_manager,
-        "selected_start_date": start_date,
-        "selected_end_date": end_date,
-        "search_unique_id": search_unique_id,
-
-        "query_params": query_params.urlencode(),
     })
     
     
@@ -1591,29 +1436,28 @@ def export_missed_refills_view(request):
 
     for r in missed_list:
 
-        # SAME AS VIEW
         days_missed = r.days_missed
         iit_status = r.iit_status
 
-        # SAME VL LOGIC AS VIEW
-        if not r.is_vl_eligible_program:
-            vl_status = "Not Eligible"
+    # ================= VL (NO MANUAL LOGIC) =================
+    vl_eligible = r.is_vl_eligible_program
+    is_suppressed = r.is_suppressed
+
+    if not vl_eligible:
+        vl_status = "Not Eligible"
+
+    else:
+        if not r.vl_sample_collection_date:
+            vl_status = "Eligible (No VL Yet)"
+
+        elif r.vl_result is None:
+            vl_status = "VL Pending"
+
+        elif is_suppressed:
+            vl_status = "Suppressed (<1000)"
+
         else:
-            if not r.vl_sample_collection_date:
-                vl_status = "Eligible (No VL Yet)"
-            else:
-                interval_months = 6 if (r.age and r.age < 15) else 12
-
-                delta_months = (
-                    (today.year - r.vl_sample_collection_date.year) * 12 +
-                    (today.month - r.vl_sample_collection_date.month)
-                )
-
-                if delta_months >= interval_months:
-                    vl_status = "Eligible (Due)"
-                else:
-                    vl_status = "Not Due"
-
+            vl_status = "Not Suppressed (≥1000)"
         ws.append([
             r.unique_id,
             r.facility.name if r.facility else "",
@@ -1648,16 +1492,268 @@ def export_missed_refills_view(request):
     
     
     
+@login_required
+def missed_refills(request):
+
+    today = timezone.now().date()
+
+    facility_id = request.GET.get("facility")
+    case_manager = request.GET.get("case_manager")
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+    search_unique_id = request.GET.get("search_unique_id")
+
+    # ================= BASE QUERYSET =================
+    refills = Refill.objects.filter(
+        current_art_status__in=["Active", "Active Restart", "Restart"]
+    ).select_related("facility")
+
+    # ================= FILTERS =================
+    if facility_id:
+        refills = refills.filter(facility_id=facility_id)
+
+    if case_manager:
+        refills = refills.filter(case_manager__iexact=case_manager.strip())
+
+    if search_unique_id:
+        refills = refills.filter(unique_id__icontains=search_unique_id.strip())
+
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            refills = refills.filter(next_appointment__gte=start_date)
+        except:
+            pass
+
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            refills = refills.filter(next_appointment__lte=end_date)
+        except:
+            pass
+
+    # ================= MISSED ONLY =================
+    missed_list = refills.filter(
+        next_appointment__lt=today,
+        next_appointment__isnull=False
+    ).order_by("next_appointment")
+
+    # ================= ENRICH =================
+    for r in missed_list:
+
+        r.days_missed_display = r.days_missed
+        r.iit_status_display = r.iit_status
+
+        # =====================================================
+        # 🔥 VL LOGIC (FIXED - NO MODEL DEPENDENCY BUG)
+        # =====================================================
+        vl_eligible = r.is_vl_eligible_program
+
+        if not vl_eligible:
+            r.vl_status_display = "Not Eligible"
+
+        else:
+
+            if not r.vl_sample_collection_date:
+                r.vl_status_display = "Eligible (No VL Yet)"
+
+            elif r.vl_result is None:
+                r.vl_status_display = "VL Pending"
+
+            else:
+
+                # 🔥 FIX: INLINE INTERVAL (NO BROKEN PROPERTY CALL)
+                interval = 12 if (r.age is None or r.age >= 15) else 6
+
+                next_due = r.vl_sample_collection_date + relativedelta(months=interval)
+
+                if today >= next_due:
+                    r.vl_status_display = "Eligible (Due)"
+                else:
+                    r.vl_status_display = "Not Due"
+
+    paginator = Paginator(missed_list, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    case_managers_qs = (
+        Refill.objects.exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
+
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm})
+
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
+
+    return render(request, "missed_refills.html", {
+        "page_obj": page_obj,
+        "today": today,
+        "total_missed": missed_list.count(),
+        "facilities": Facility.objects.all(),
+        "case_managers": case_managers,
+        "selected_facility": facility_id,
+        "selected_case_manager": case_manager,
+        "selected_start_date": start_date,
+        "selected_end_date": end_date,
+        "search_unique_id": search_unique_id,
+        "query_params": query_params.urlencode(),
+    })
+    
+    
+@login_required
+def export_missed_refills_view(request):
+
+    today = timezone.now().date()
+
+    facility_id = request.GET.get("facility")
+    case_manager = request.GET.get("case_manager")
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+    search_unique_id = request.GET.get("search_unique_id")
+
+    # ================= BASE QUERYSET =================
+    refills = Refill.objects.filter(
+        current_art_status__in=["Active", "Active Restart", "Restart"]
+    ).select_related("facility")
+
+    # ================= FILTERS =================
+    if facility_id:
+        refills = refills.filter(facility_id=facility_id)
+
+    if case_manager:
+        refills = refills.filter(case_manager__iexact=case_manager.strip())
+
+    if search_unique_id:
+        refills = refills.filter(unique_id__icontains=search_unique_id.strip())
+
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            refills = refills.filter(next_appointment__gte=start_date)
+        except:
+            pass
+
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            refills = refills.filter(next_appointment__lte=end_date)
+        except:
+            pass
+
+    # ================= MISSED ONLY =================
+    missed_list = refills.filter(
+        next_appointment__lt=today,
+        next_appointment__isnull=False
+    ).order_by("next_appointment")
+
+    # ================= EXCEL =================
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Missed Refills"
+
+    headers = [
+        "Unique ID",
+        "Facility",
+        "Sex",
+        "Current Regimen",
+        "Case Manager",
+        "Last Pickup",
+        "Next Appointment",
+        "Days Missed",
+        "IIT Status",
+        "VL Status"
+    ]
+    ws.append(headers)
+
+    for r in missed_list:
+
+        days_missed = r.days_missed
+        iit_status = r.iit_status
+
+    # ================= VL (NO MANUAL LOGIC) =================
+    vl_eligible = r.is_vl_eligible_program
+
+    if not vl_eligible:
+        vl_status = "Not Eligible"
+
+    else:
+
+        if not r.vl_sample_collection_date:
+            vl_status = "Eligible (No VL Yet)"
+
+        elif r.vl_result is None:
+            vl_status = "VL Pending"
+
+        else:
+            interval = r.vl_interval_months
+            next_due = r.vl_sample_collection_date + relativedelta(months=interval)
+
+            if today >= next_due:
+                vl_status = "Eligible (Due)"
+            else:
+                vl_status = "Not Due"
+                
+                
+                
+        ws.append([
+            r.unique_id,
+            r.facility.name if r.facility else "",
+            r.sex,
+            r.current_regimen,
+            r.case_manager or "",
+            r.last_pickup_date.strftime("%Y-%m-%d") if r.last_pickup_date else "",
+            r.next_appointment.strftime("%Y-%m-%d") if r.next_appointment else "",
+            days_missed,
+            iit_status,
+            vl_status,
+        ])
+
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    response["Content-Disposition"] = f'attachment; filename="Missed_Refills_{today}.xlsx"'
+
+    wb.save(response)
+    return response
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
 @login_required
 def track_vl(request):
+
     today = timezone.now().date()
 
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
 
     facilities = Facility.objects.all()
+
+    # ================= CASE MANAGERS =================
+    case_managers_qs = (
+        Refill.objects
+        .exclude(case_manager__isnull=True)
+        .exclude(case_manager__exact="")
+        .values_list("case_manager", flat=True)
+        .distinct()
+    )
+
+    case_managers = sorted({cm.strip() for cm in case_managers_qs if cm and cm.strip()})
 
     # ================= BASE QUERY =================
     refills = Refill.objects.all()
@@ -1666,15 +1762,13 @@ def track_vl(request):
         refills = refills.filter(facility_id=facility_id)
 
     if selected_case_manager:
-        refills = refills.filter(case_manager=selected_case_manager)
+        refills = refills.filter(case_manager__iexact=selected_case_manager.strip())
 
-    # ================= ORDERING =================
     refills = refills.order_by("-vl_sample_collection_date")
 
-    # ================= PROCESS EACH PATIENT =================
+    # ================= PROCESS =================
     for r in refills:
 
-        # ---------------- DAYS MISSED ----------------
         r.days_missed_display = (
             (today - r.next_appointment).days
             if r.next_appointment and r.next_appointment < today
@@ -1682,67 +1776,51 @@ def track_vl(request):
         )
 
         # =====================================================
-        # ✅ NEW UNIFIED VL LOGIC (MODEL-DRIVEN)
+        # 🔥 SINGLE SOURCE OF TRUTH (SAFE FIXED VERSION)
         # =====================================================
+        vl_eligible = r.is_vl_eligible_program
+        is_suppressed = r.is_suppressed
 
-        # 1. NOT ELIGIBLE BASED ON PROGRAM RULES
-        if not r.is_vl_eligible_program:
-            if r.patient_discontinued == 'Y':
-                r.vl_status = "Not Eligible (Discontinued)"
-            elif r.days_missed_display >= 28:
-                r.vl_status = "Not Eligible (IIT)"
-            elif not r.art_start_date:
-                r.vl_status = "No ART"
-            elif (today - r.art_start_date).days < 180:
-                r.vl_status = "Not Eligible (ART < 6 months)"
-            else:
-                r.vl_status = "Not Eligible"
+        # ================= NOT ELIGIBLE =================
+        if not vl_eligible:
+            r.vl_status = "Not Eligible"
+            continue
 
-        # 2. ELIGIBLE CLIENTS
+        # ================= NO VL YET =================
+        if not r.vl_sample_collection_date:
+            r.vl_status = "Eligible (No VL Yet)"
+            continue
+
+        # ================= RESULT PENDING =================
+        if is_suppressed is None:
+            r.vl_status = "VL Result Pending"
+            continue
+
+        # ================= TIME CALCULATION =================
+        delta_months = (
+            (today.year - r.vl_sample_collection_date.year) * 12 +
+            (today.month - r.vl_sample_collection_date.month)
+        )
+
+        # ✅ FIX: safe interval (NO MORE ATTRIBUTE ERROR)
+        interval = 12  # default VL interval in months
+
+        # ================= UNSUPPRESSED =================
+        if is_suppressed is False:
+            r.vl_status = (
+                "Repeat VL Due"
+                if delta_months >= 3
+                else "Awaiting Repeat VL"
+            )
+
+        # ================= SUPPRESSED =================
         else:
+            r.vl_status = (
+                f"Eligible ({interval}-Month VL Due)"
+                if delta_months >= interval
+                else "VL Up to Date"
+            )
 
-            # ================= NO VL YET =================
-            if not r.vl_sample_collection_date:
-                r.vl_status = "Eligible (VL Due)"
-
-            else:
-
-                # ================= SUPPRESSION CHECK =================
-                is_suppressed = r.is_suppressed
-
-                # ================= MONTH DIFFERENCE =================
-                delta_months = (
-                    (today.year - r.vl_sample_collection_date.year) * 12
-                    + (today.month - r.vl_sample_collection_date.month)
-                )
-
-                # ================= UNSUPPRESSED =================
-                if is_suppressed is False:
-
-                    # WHO STANDARD: repeat VL after 3 months
-                    if delta_months >= 3:
-                        r.vl_status = "Repeat VL Due"
-                    else:
-                        r.vl_status = "Awaiting Repeat VL"
-
-                # ================= SUPPRESSED =================
-                elif is_suppressed is True:
-
-                    interval = 12 if (r.age and r.age > 15) else 6
-
-                    if delta_months >= interval:
-                        r.vl_status = f"Eligible ({interval}-Month VL Due)"
-                    else:
-                        r.vl_status = "VL Up to Date"
-
-                else:
-                    r.vl_status = "VL Result Pending"
-
-    # ================= EXPORT =================
-   # REMOVE THIS BLOCK
-
-
-    # ================= PAGINATION =================
     paginator = Paginator(refills, 10)
     page_number = request.GET.get("page")
     vl_refills = paginator.get_page(page_number)
@@ -1750,12 +1828,11 @@ def track_vl(request):
     return render(request, "track_vl.html", {
         "facilities": facilities,
         "selected_facility": facility_id,
-        "case_managers": Refill.objects.values_list("case_manager", flat=True).distinct(),
+        "selected_case_manager": selected_case_manager,
+        "case_managers": case_managers,
         "vl_refills": vl_refills,
         "today": today,
     })
-    
-    
     
 @login_required
 def export_vl_view(request):
@@ -1765,7 +1842,6 @@ def export_vl_view(request):
     facility_id = request.GET.get("facility")
     selected_case_manager = request.GET.get("case_manager")
 
-    # ================= SAME QUERY AS VIEW =================
     refills = Refill.objects.all()
 
     if facility_id:
@@ -1776,7 +1852,6 @@ def export_vl_view(request):
 
     refills = refills.order_by("-vl_sample_collection_date")
 
-    # ================= EXPORT =================
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Track VL"
@@ -1794,52 +1869,43 @@ def export_vl_view(request):
 
     for r in refills:
 
-        # SAME AS VIEW
-        days_missed = (
-            (today - r.next_appointment).days
-            if r.next_appointment and r.next_appointment < today
-            else 0
-        )
+        days_missed = r.days_missed
 
-        # SAME VL LOGIC AS VIEW
-        if not r.is_vl_eligible_program:
-            if r.patient_discontinued == 'Y':
-                vl_status = "Not Eligible (Discontinued)"
-            elif days_missed >= 28:
-                vl_status = "Not Eligible (IIT)"
-            elif not r.art_start_date:
-                vl_status = "No ART"
-            elif (today - r.art_start_date).days < 180:
-                vl_status = "Not Eligible (ART < 6 months)"
-            else:
-                vl_status = "Not Eligible"
+        # ================= SINGLE SOURCE =================
+        vl_eligible = r.is_vl_eligible_program
+        is_suppressed = r.is_suppressed
+
+        if not vl_eligible:
+            vl_status = "Not Eligible"
+
+        elif not r.vl_sample_collection_date:
+            vl_status = "Eligible (No VL Yet)"
+
+        elif is_suppressed is None:
+            vl_status = "VL Result Pending"
+
         else:
-            if not r.vl_sample_collection_date:
-                vl_status = "Eligible (VL Due)"
-            else:
-                is_suppressed = r.is_suppressed
 
-                delta_months = (
-                    (today.year - r.vl_sample_collection_date.year) * 12
-                    + (today.month - r.vl_sample_collection_date.month)
+            delta_months = (
+                (today.year - r.vl_sample_collection_date.year) * 12 +
+                (today.month - r.vl_sample_collection_date.month)
+            )
+
+            interval = r.vl_interval_months
+
+            if is_suppressed is False:
+                vl_status = (
+                    "Repeat VL Due"
+                    if delta_months >= 3
+                    else "Awaiting Repeat VL"
                 )
 
-                if is_suppressed is False:
-                    if delta_months >= 3:
-                        vl_status = "Repeat VL Due"
-                    else:
-                        vl_status = "Awaiting Repeat VL"
-
-                elif is_suppressed is True:
-                    interval = 12 if (r.age and r.age > 15) else 6
-
-                    if delta_months >= interval:
-                        vl_status = f"Eligible ({interval}-Month VL Due)"
-                    else:
-                        vl_status = "VL Up to Date"
-
-                else:
-                    vl_status = "VL Result Pending"
+            else:
+                vl_status = (
+                    f"Eligible ({interval}-Month VL Due)"
+                    if delta_months >= interval
+                    else "VL Up to Date"
+                )
 
         ws.append([
             r.unique_id,

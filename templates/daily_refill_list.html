@@ -6,12 +6,9 @@
     background-color: #f8d7da !important;
   }
 
-  /* missed appointments / overdue */
   .discontinued {
     background-color: #fff3cd !important;
   }
-
-  /* discontinued patients */
 
   .cards-container {
     display: flex;
@@ -73,7 +70,7 @@
   </div>
 </form>
 
-<!-- ================= MOBILE VIEW: CARDS ================= -->
+<!-- ================= MOBILE VIEW ================= -->
 <div class="d-block d-md-none cards-container">
   {% for refill in refills %}
   <div class="card
@@ -85,6 +82,7 @@
     <div class="card-body">
 
       <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
+
       <small>Age: {{ refill.age_display }}</small>
       <small>Sex: {{ refill.sex }}</small>
       <small>Last Pickup: {{ refill.last_pickup_date }}</small>
@@ -93,18 +91,13 @@
       <small>Regimen: {{ refill.current_regimen }}</small>
       <small>Case Manager: {{ refill.case_manager }}</small>
 
-      <!-- TB / VL / EAC / AHD / TPT -->
       <small>TB Status: {{ refill.tb_status_display }}</small>
 
-      <!-- ================= FIXED VL ================= -->
+      <!-- ================= FIXED VL STATUS ================= -->
       <small>
         VL Status:
-        {% if refill.is_vl_eligible %}
-            {% if refill.is_suppressed %}
-                <span class="badge bg-success">Suppressed (&lt;1000)</span>
-            {% else %}
-                <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-            {% endif %}
+        {% if refill.is_vl_eligible_program %}
+            <span class="badge bg-success">Eligible</span>
         {% else %}
             <span class="badge bg-secondary">Not Eligible</span>
         {% endif %}
@@ -126,10 +119,10 @@
       <small>AHD Status: {{ refill.ahd_display }}</small>
       <small>TPT Status: {{ refill.tpt_status }}</small>
 
-      <!-- BADGES -->
       {% if refill.days_missed_display > 0 %}
       <span class="badge bg-danger">Missed Appointment</span>
       {% endif %}
+
       {% if refill.patient_discontinued %}
       <span class="badge bg-warning text-dark">Discontinued</span>
       {% endif %}
@@ -148,7 +141,7 @@
   {% endfor %}
 </div>
 
-<!-- ================= DESKTOP VIEW: TABLES ================= -->
+<!-- ================= DESKTOP VIEW ================= -->
 <div class="d-none d-md-block">
   <h3>Add Refills ({{ refills.count }})</h3>
 
@@ -192,14 +185,10 @@
 
           <td>{{ refill.tb_status_display }}</td>
 
-          <!-- ================= FIXED VL ================= -->
+          <!-- ================= FIXED VL STATUS ================= -->
           <td>
-            {% if refill.is_vl_eligible %}
-                {% if refill.is_suppressed %}
-                    <span class="badge bg-success">Suppressed (&lt;1000)</span>
-                {% else %}
-                    <span class="badge bg-danger">Not Suppressed (≥1000)</span>
-                {% endif %}
+            {% if refill.is_vl_eligible_program %}
+                <span class="badge bg-success">Eligible</span>
             {% else %}
                 <span class="badge bg-secondary">Not Eligible</span>
             {% endif %}
