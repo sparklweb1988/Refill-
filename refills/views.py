@@ -1763,9 +1763,7 @@ def track_vl(request):
     if selected_case_manager:
         refills = refills.filter(case_manager__iexact=selected_case_manager.strip())
 
-    refills = refills.order_by("-vl_sample_collection_date")
-
-    # ================= PROCESS (FIXED) =================
+    # ================= PROCESS =================
     processed_refills = []
 
     for r in refills:
@@ -1811,7 +1809,14 @@ def track_vl(request):
 
         processed_refills.append(r)
 
-    # ================= PAGINATION FIX =================
+    # ================= 🔥 FIX: SORT AFTER PROCESSING =================
+    processed_refills = sorted(
+        processed_refills,
+        key=lambda x: x.vl_sample_collection_date or today,
+        reverse=True
+    )
+
+    # ================= PAGINATION =================
     paginator = Paginator(processed_refills, 10)
     page_number = request.GET.get("page")
     vl_refills = paginator.get_page(page_number)
@@ -1824,7 +1829,6 @@ def track_vl(request):
         "vl_refills": vl_refills,
         "today": today,
     })
-    
     
 @login_required
 def export_vl_view(request):
