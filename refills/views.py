@@ -81,22 +81,36 @@ def get_quarter_range(today):
 
 
 
-
 VALID_REFILL_MONTHS = [0.5, 1, 2, 2.8, 3, 4, 5, 6]
+
+
+def clean_int(value):
+    if pd.isnull(value):
+        return None
+
+    value = str(value).strip().replace(",", "")
+
+    if value == "":
+        return None
+
+    try:
+        return int(float(value))
+    except Exception:
+        raise ValidationError(f"Invalid numeric value: {value}")
+
 
 def import_refills_from_excel(file):
 
-    MAX_FILE_SIZE =  5 * 1024 * 1024 * 1024  # 5 GB
+    MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024  # 5 GB
 
     if file.size > MAX_FILE_SIZE:
         raise ValidationError("File size exceeds 50 MB limit")
-
 
     file.seek(0)
 
     df = pd.read_excel(file)
 
-    df.columns = df.columns.str.strip().str.replace('\n','').str.replace('\r','').str.lower()
+    df.columns = df.columns.str.strip().str.replace('\n', '').str.replace('\r', '').str.lower()
 
     required_columns_map = {
         'unique id': 'unique id',
@@ -192,8 +206,9 @@ def import_refills_from_excel(file):
             row['date of viral load sample collection (yyyy-mm-dd)']
         ).date() if pd.notnull(row['date of viral load sample collection (yyyy-mm-dd)']) else None
 
-        vl_result = int(row['current viral load (c/ml)']) if pd.notnull(
-            row['current viral load (c/ml)']) else None
+        vl_result = clean_int(
+            row['current viral load (c/ml)']
+        ) if pd.notnull(row['current viral load (c/ml)']) else None
 
         tpt_start_date = pd.to_datetime(
             row['date of tpt start (yyyy-mm-dd)']
@@ -212,13 +227,13 @@ def import_refills_from_excel(file):
             row['date of commencement of eac (yyyy-mm-dd)']
         ).date() if pd.notnull(row['date of commencement of eac (yyyy-mm-dd)']) else None
 
-        eac_sessions_completed = int(
+        eac_sessions_completed = clean_int(
             row['number of eac sessions completed']
         ) if pd.notnull(row['number of eac sessions completed']) else 0
 
         # ================= NEW TB FIELDS =================
 
-        age = int(row['age']) if pd.notnull(row['age']) else None
+        age = clean_int(row['age']) if pd.notnull(row['age']) else None
 
         tb_screening_date = pd.to_datetime(
             row['date of tb screening (yyyy-mm-dd)']
