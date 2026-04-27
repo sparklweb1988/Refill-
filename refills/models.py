@@ -158,9 +158,7 @@ class Refill(models.Model):
 
     # ================= META =================
     class Meta:
-        unique_together = ('facility', 'unique_id')
-        ordering = ['-last_pickup_date']
-
+        ordering = ['facility__name', '-last_pickup_date']
     # ================= AUTO CALC =================
     def calculate_dates(self):
         if self.last_pickup_date and self.months_of_refill_days:

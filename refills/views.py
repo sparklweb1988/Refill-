@@ -80,7 +80,6 @@ def get_quarter_range(today):
 # -----------------------
 
 
-
 VALID_REFILL_MONTHS = [0.5, 1, 2, 2.8, 3, 4, 5, 6]
 
 
@@ -97,6 +96,7 @@ def clean_int(value):
         return int(float(value))
     except Exception:
         return None
+
 
 def import_refills_from_excel(file):
 
@@ -131,7 +131,6 @@ def import_refills_from_excel(file):
         'date of commencement of eac (yyyy-mm-dd)': 'date of commencement of eac (yyyy-mm-dd)',
         'number of eac sessions completed': 'number of eac sessions completed',
 
-        # NEW TB COLUMNS
         'age': 'age',
         'date of tb screening (yyyy-mm-dd)': 'date of tb screening (yyyy-mm-dd)',
         'tb screening type': 'tb screening type',
@@ -264,7 +263,7 @@ def import_refills_from_excel(file):
             Refill(
 
                 facility=facility_obj,
-                unique_id=unique_id,
+                unique_id=unique_id,   # ✅ duplicates now allowed
 
                 last_pickup_date=last_pickup_date,
                 months_of_refill_days=months,
@@ -276,21 +275,17 @@ def import_refills_from_excel(file):
 
                 current_art_status=row['current art status'].strip(),
 
-                # VL
                 art_start_date=art_start_date,
                 vl_sample_collection_date=vl_sample_collection_date,
                 vl_result=vl_result,
 
-                # TPT
                 tpt_start_date=tpt_start_date,
                 tpt_completion_date=tpt_completion_date,
                 tpt_expected_completion=tpt_expected_completion,
 
-                # EAC
                 eac_start_date=eac_start_date,
                 eac_sessions_completed=eac_sessions_completed,
 
-                # NEW TB
                 age=age,
                 tb_screening_date=tb_screening_date,
                 tb_screening_type=tb_screening_type,
@@ -299,7 +294,6 @@ def import_refills_from_excel(file):
                 tb_result_received_date=tb_result_received_date,
                 tb_diagnostic_result=tb_diagnostic_result,
             )
-
         )
 
     facility_ids = {obj.facility.id for obj in validated_rows}
@@ -312,6 +306,7 @@ def import_refills_from_excel(file):
         Refill.objects.bulk_create(validated_rows, batch_size=1000)
 
     return len(validated_rows)
+
 
 
 
