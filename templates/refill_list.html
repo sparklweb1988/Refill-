@@ -32,7 +32,11 @@
       {% endfor %}
     </select>
 
-    <input type="text" name="search_unique_id" value="{{ search_unique_id|default:'' }}" class="form-control w-auto">
+    <input type="text"
+       name="search_unique_id"
+       value="{{ search_unique_id|default:'' }}"
+       placeholder="Search Unique ID"
+       class="form-control w-auto">
     <input type="date" name="start_date" value="{{ selected_start_date }}" class="form-control w-auto">
     <input type="date" name="end_date" value="{{ selected_end_date }}" class="form-control w-auto">
 
