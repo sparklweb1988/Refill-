@@ -90,14 +90,13 @@ def clean_int(value):
 
     value = str(value).strip().replace(",", "")
 
-    if value == "":
+    if value.lower() in ["failed", "n/a", "na", "not done", "--", ""]:
         return None
 
     try:
         return int(float(value))
     except Exception:
-        raise ValidationError(f"Invalid numeric value: {value}")
-
+        return None
 
 def import_refills_from_excel(file):
 
