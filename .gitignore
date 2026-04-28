@@ -1,3 +1,4 @@
+
 # =========================
 # Python
 # =========================
@@ -15,40 +16,30 @@ venv/
 # =========================
 # Django
 # =========================
-# Database
 db.sqlite3
 
-# Media / user uploads
+# Media / uploads
 media/
 uploads/
 
-# Static files (collected)
+# Static files
 staticfiles/
 static_root/
 
-# Migrations (ignore compiled, keep __init__.py)
-**/migrations/__pycache__/
-**/migrations/*.py[cod]
+# Migrations (keep init.py, ignore cache)
+**/__pycache__/
+*.pyc
 
 # =========================
 # IDE / Editor
 # =========================
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
+*.swp
+*.swo
 
 # =========================
-# OS / Misc
+# OS files
 # =========================
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# =========================
-# Logs
-# =========================
-*.log
-logs/
-*.out
-db.sqlite3
