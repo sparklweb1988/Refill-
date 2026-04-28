@@ -126,10 +126,12 @@
       {% if refill.patient_discontinued %}
       <span class="badge bg-warning text-dark">Discontinued</span>
       {% endif %}
-
-      <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}"
-         class="btn btn-primary btn-sm mt-2">Manage Refill</a>
-
+      {% with clean_id=refill.unique_id|cut:'\n'|cut:'\r'|cut:' ' %}
+        <a href="{% url 'refill_add_with_id' unique_id=clean_id %}"
+          class="btn btn-sm btn-primary">
+            Manage Refill
+        </a>
+{% endwith %}
     </div>
   </div>
   {% empty %}
@@ -216,8 +218,11 @@
             {% if refill.patient_discontinued %}
               <span class="badge bg-warning text-dark">Discontinued</span><br>
             {% endif %}
-            <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}"
-               class="btn btn-primary btn-sm">Manage</a>
+            {% with clean_id=refill.unique_id|cut:'\n'|cut:'\r'|cut:' ' %}
+            <a href="{% url 'refill_add_with_id' unique_id=clean_id %}" class="btn btn-sm btn-primary">
+                Manage Refill
+            </a>
+            {% endwith %}
           </td>
 
         </tr>
