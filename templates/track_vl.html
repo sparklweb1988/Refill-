@@ -36,7 +36,7 @@
 <!-- ================= FILTERS ================= -->
 <form method="get" class="row g-3 mb-4">
 
-    <div class="col-md-3">
+    <div class="col-12 col-md-3">
         <select name="facility" class="form-select" onchange="this.form.submit()">
             <option value="">All Facilities</option>
             {% for facility in facilities %}
@@ -48,7 +48,7 @@
         </select>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-12 col-md-3">
         <select name="case_manager" class="form-select" onchange="this.form.submit()">
             <option value="">All Case Managers</option>
             {% for cm in case_managers %}
@@ -60,29 +60,33 @@
         </select>
     </div>
 
-    <div class="col-md-3">
-        <input type="text" name="unique_id"
+    <div class="col-12 col-md-3">
+        <input type="text"
+               name="unique_id"
                class="form-control"
                placeholder="Unique ID"
                value="{{ selected_unique_id|default_if_none:'' }}">
     </div>
 
-    <div class="col-md-3 d-flex">
-        <input type="date" name="start_date"
-               class="form-control me-2"
+    <div class="col-12 col-md-3 d-grid gap-2">
+        
+        <input type="date"
+               name="start_date"
+               class="form-control"
                value="{{ selected_start_date }}">
 
-        <input type="date" name="end_date"
-               class="form-control me-2"
+        <input type="date"
+               name="end_date"
+               class="form-control"
                value="{{ selected_end_date }}">
 
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary w-100">
             Filter
         </button>
+
     </div>
 
 </form>
-
 <!-- ================= DOWNLOAD ================= -->
 <div class="mb-3">
     <a href="{% url 'export_vl' %}?{{ request.GET.urlencode }}"
