@@ -3,13 +3,9 @@
 {% block content %}
 
 <style>
-.table-responsive {
-    overflow-x: auto;
-}
+.table-responsive { overflow-x: auto; }
 
-.mobile-view {
-    display: none;
-}
+.mobile-view { display: none; }
 
 .mobile-card {
     border: 1px solid #ddd;
@@ -69,7 +65,7 @@
     </div>
 
     <div class="col-12 col-md-3 d-grid gap-2">
-        
+
         <input type="date"
                name="start_date"
                class="form-control"
@@ -87,12 +83,13 @@
     </div>
 
 </form>
+
 <!-- ================= DOWNLOAD ================= -->
 <div class="mb-3">
     <a href="{% url 'export_vl' %}?{{ request.GET.urlencode }}"
-    class="btn btn-success btn-sm">
-    <i class="bi bi-download"></i> Download Excel
- </a>
+       class="btn btn-success btn-sm">
+       Download Excel
+    </a>
 </div>
 
 <!-- ================= DESKTOP TABLE ================= -->
@@ -103,6 +100,7 @@
 <thead class="table-dark text-center">
 <tr>
     <th>Unique ID</th>
+    <th>Facility</th>
     <th>VL Collected</th>
     <th>Last Refill</th>
     <th>VL Status</th>
@@ -118,12 +116,17 @@
 <tr class="text-center">
 
     <td>{{ refill.unique_id }}</td>
-    <td>{{ refill.vl_sample_collection_date|default:"-" }}</td>
-    <td>{{ refill.last_pickup_date|default:"-" }}</td>
+    <td>{{ refill.facility.name|default:"-" }}</td>
+    <td>{{ refill.vl_sample_collection_date|date:"Y-m-d"|default:"-" }}</td>
+    <td>{{ refill.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
 
-    <!-- ================= CLEAN VL STATUS ================= -->
+    <!-- ================= VL STATUS (FIXED LOGIC FRIENDLY) ================= -->
     <td>
-        {% if refill.is_vl_eligible_program %}
+        {% if refill.vl_status_display %}
+            <span class="badge bg-info text-dark">
+                {{ refill.vl_status_display }}
+            </span>
+        {% elif refill.is_vl_eligible_program %}
             <span class="badge bg-success">Eligible</span>
         {% else %}
             <span class="badge bg-secondary">Not Eligible</span>
@@ -132,16 +135,22 @@
 
     <!-- ================= RESULT ================= -->
     <td>
-        {% if refill.vl_result is not None %}
+        {% if refill.vl_sample_collection_date %}
 
-            {% if refill.is_suppressed %}
-                <span class="text-success fw-bold">Suppressed (&lt;1000)</span>
+            {% if refill.vl_result is not None %}
+
+                {% if refill.is_suppressed %}
+                    <span class="text-success fw-bold">Suppressed (&lt;1000)</span>
+                {% else %}
+                    <span class="text-danger fw-bold">Not Suppressed (≥1000)</span>
+                {% endif %}
+
             {% else %}
-                <span class="text-danger fw-bold">Not Suppressed (≥1000)</span>
+                <span class="text-warning">Pending</span>
             {% endif %}
 
         {% else %}
-            <span class="text-muted">No Result</span>
+            <span class="text-muted">No VL Done</span>
         {% endif %}
     </td>
 
@@ -151,7 +160,7 @@
 
 {% empty %}
 <tr>
-    <td colspan="6" class="text-center">No records found.</td>
+    <td colspan="7" class="text-center">No records found.</td>
 </tr>
 {% endfor %}
 
@@ -169,28 +178,40 @@
 <div class="mobile-card">
 
     <div><strong>Unique ID:</strong> {{ refill.unique_id }}</div>
-    <div><strong>VL Collected:</strong> {{ refill.vl_sample_collection_date|default:"-" }}</div>
-    <div><strong>Last Refill:</strong> {{ refill.last_pickup_date|default:"-" }}</div>
+    <div><strong>Facility:</strong> {{ refill.facility.name|default:"-" }}</div>
+    <div><strong>VL Collected:</strong> {{ refill.vl_sample_collection_date|date:"Y-m-d"|default:"-" }}</div>
+    <div><strong>Last Refill:</strong> {{ refill.last_pickup_date|date:"Y-m-d"|default:"-" }}</div>
 
-    <div><strong>VL Status:</strong>
-        {% if refill.is_vl_eligible_program %}
+    <div>
+        <strong>VL Status:</strong>
+        {% if refill.vl_status_display %}
+            {{ refill.vl_status_display }}
+        {% elif refill.is_vl_eligible_program %}
             Eligible
         {% else %}
             Not Eligible
         {% endif %}
     </div>
 
-    <div><strong>VL Result:</strong>
-        {% if refill.vl_result is not None %}
+    <div>
+        <strong>VL Result:</strong>
 
-            {% if refill.is_suppressed %}
-                Suppressed
+        {% if refill.vl_sample_collection_date %}
+
+            {% if refill.vl_result is not None %}
+
+                {% if refill.is_suppressed %}
+                    Suppressed
+                {% else %}
+                    Not Suppressed
+                {% endif %}
+
             {% else %}
-                Not Suppressed
+                Pending
             {% endif %}
 
         {% else %}
-            No Result
+            No VL Done
         {% endif %}
     </div>
 
@@ -212,7 +233,7 @@
         {% if vl_refills.has_previous %}
         <li class="page-item">
             <a class="page-link"
-               href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.previous_page_number }}">
+               href="?page={{ vl_refills.previous_page_number }}">
                 Previous
             </a>
         </li>
@@ -227,7 +248,7 @@
         {% if vl_refills.has_next %}
         <li class="page-item">
             <a class="page-link"
-               href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ vl_refills.next_page_number }}">
+               href="?page={{ vl_refills.next_page_number }}">
                 Next
             </a>
         </li>

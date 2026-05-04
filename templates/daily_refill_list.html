@@ -1,239 +1,205 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
 <style>
-  .overdue {
-    background-color: #f8d7da !important;
-  }
+.overdue { background-color: #f8d7da !important; }
+.discontinued { background-color: #fff3cd !important; }
 
-  .discontinued {
-    background-color: #fff3cd !important;
-  }
+.cards-container { display: flex; flex-direction: column; gap: 1rem; }
 
-  .cards-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
+.refill-card {
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
 
-  .refill-card {
-    padding: 1rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+@media (max-width: 767px) {
+  .table-responsive {
+    overflow-x: auto;
   }
-
-  .refill-card small {
-    display: block;
-    margin-bottom: 0.5rem;
-  }
-
-  .badge-status {
-    font-size: 0.8rem;
-  }
-
-  @media (max-width: 767px) {
-    .table-responsive {
-      display: block;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      max-width: 100%;
-    }
-
-    .refill-card h5 {
-      font-size: 1rem;
-    }
-  }
+}
 </style>
 
-<!-- ================= FILTERS ================= -->
-<form method="get" class="mb-3 row g-2 align-items-center">
-  <div class="col-12 col-md-4">
+<form method="get" class="mb-3 row g-2">
+
+  <div class="col-md-4">
     <select name="facility" onchange="this.form.submit()" class="form-select">
       <option value="">All Facilities</option>
       {% for facility in facilities %}
-      <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %} selected {% endif %}>
+      <option value="{{ facility.id }}"
+        {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
         {{ facility.name }}
       </option>
       {% endfor %}
     </select>
   </div>
 
-  <div class="col-12 col-md-4">
+  <div class="col-md-4">
     <select name="case_manager" onchange="this.form.submit()" class="form-select">
       <option value="">All Case Managers</option>
       {% for manager in case_managers %}
-      <option value="{{ manager }}" {% if manager == selected_case_manager %} selected {% endif %}>
+      <option value="{{ manager }}" {% if manager == selected_case_manager %}selected{% endif %}>
         {{ manager }}
       </option>
       {% endfor %}
     </select>
   </div>
+
 </form>
+
+{% if refills %}
 
 <!-- ================= MOBILE VIEW ================= -->
 <div class="d-block d-md-none cards-container">
-  {% for refill in refills %}
-  <div class="card
-      {% if refill.patient_discontinued %} discontinued
-      {% elif refill.days_missed_display > 0 %} overdue
-      {% else %} bg-light
-      {% endif %} refill-card">
 
-    <div class="card-body">
+{% for refill in refills %}
 
-      <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
+{% with clean_id=refill.unique_id|default_if_none:""|stringformat:"s"|cut:"\n"|cut:"\r"|cut:" "|urlencode %}
 
-      <small>Age: {{ refill.age_display }}</small>
-      <small>Sex: {{ refill.sex }}</small>
-      <small>Last Pickup: {{ refill.last_pickup_date }}</small>
-      <small>Refill (Days): {{ refill.months_of_refill_days }}</small>
-      <small>Next Appointment: {{ refill.next_appointment }}</small>
-      <small>Regimen: {{ refill.current_regimen }}</small>
-      <small>Case Manager: {{ refill.case_manager }}</small>
+<div class="card refill-card
+    {% if refill.patient_discontinued == 'Y' %}discontinued
+    {% elif refill.vl_due_date and refill.vl_due_date < today %}overdue
+    {% endif %}">
 
-      <small>TB Status: {{ refill.tb_status_display }}</small>
+  <div class="card-body">
 
-      <!-- ================= FIXED VL STATUS ================= -->
-      <small>
-        VL Status:
-        {% if refill.is_vl_eligible_program %}
-            <span class="badge bg-success">Eligible</span>
-        {% else %}
-            <span class="badge bg-secondary">Not Eligible</span>
-        {% endif %}
-      </small>
+    <h5>{{ refill.unique_id }} | {{ refill.facility.name }}</h5>
 
-      <small>
-        EAC Status:
-        {% if refill.eac %}
-          {% if refill.post_eac_vl_due_display %}
-            Post-EAC VL Due
-          {% else %}
-            {{ refill.eac_status_display }}
-          {% endif %}
-        {% else %}
-          Not Eligible
-        {% endif %}
-      </small>
+    <small>Age: {{ refill.age_display }}</small>
+    <small>Sex: {{ refill.sex }}</small>
+    <small>Last Pickup: {{ refill.last_pickup_date|default:"-" }}</small>
+    <small>Next Appointment: {{ refill.next_appointment|default:"-" }}</small>
+    <small>Case Manager: {{ refill.case_manager }}</small>
 
-      <small>AHD Status: {{ refill.ahd_display }}</small>
-      <small>TPT Status: {{ refill.tpt_status }}</small>
+    <hr>
 
-      {% if refill.days_missed_display > 0 %}
-      <span class="badge bg-danger">Missed Appointment</span>
+    <small>VL Status: <span class="badge bg-info text-dark">{{ refill.vl_status_display }}</span></small>
+
+    <small>
+      {% if "Overdue" in refill.vl_status_display %}
+        <span class="badge bg-danger">URGENT</span>
+      {% elif "Repeat VL Due" in refill.vl_status_display %}
+        <span class="badge bg-warning text-dark">DUE</span>
       {% endif %}
+    </small>
 
-      {% if refill.patient_discontinued %}
+    <small>EAC Status: {{ refill.eac_status_display }}</small>
+    <small>AHD: {{ refill.ahd_display }}</small>
+    <small>TPT: {{ refill.tpt_status }}</small>
+
+    {% if refill.vl_due_date and refill.vl_due_date < today %}
+      <span class="badge bg-danger">VL Overdue</span>
+    {% endif %}
+
+    {% if refill.patient_discontinued == "Y" %}
       <span class="badge bg-warning text-dark">Discontinued</span>
-      {% endif %}
-      {% with clean_id=refill.unique_id|cut:'\n'|cut:'\r'|cut:' ' %}
-        <a href="{% url 'refill_add_with_id' unique_id=clean_id %}"
-          class="btn btn-sm btn-primary">
-            Manage Refill
-        </a>
+    {% endif %}
+
+    <br><br>
+
+    {% if clean_id %}
+      <a href="{% url 'refill_add_with_id' unique_id=clean_id %}"
+         class="btn btn-sm btn-primary">
+         Manage Refill
+      </a>
+    {% else %}
+      <span class="text-danger small">Missing ID</span>
+    {% endif %}
+
+  </div>
+</div>
+
 {% endwith %}
-    </div>
-  </div>
-  {% empty %}
-  <div class="card bg-light refill-card">
-    <div class="card-body">
-      <small>No daily refills today</small>
-    </div>
-  </div>
-  {% endfor %}
+{% endfor %}
+
 </div>
 
 <!-- ================= DESKTOP VIEW ================= -->
 <div class="d-none d-md-block">
-  <h3>Add Refills ({{ refills.count }})</h3>
 
-  <div class="table-responsive">
-    <table class="table table-striped table-bordered">
-      <thead class="table-dark">
-        <tr>
-          <th>Unique ID</th>
-          <th>Age</th>
-          <th>Sex</th>
-          <th>Facility</th>
-          <th>Last Pickup</th>
-          <th>Refill (Days)</th>
-          <th class="text-danger">Next Appointment</th>
-          <th>Regimen</th>
-          <th>Case Manager</th>
-          <th>TB Status</th>
-          <th>VL Status</th>
-          <th>EAC Status</th>
-          <th>AHD Eligibility</th>
-          <th>TPT Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
+<h3>Daily Refills ({{ refills|length }})</h3>
 
-      <tbody>
-        {% for refill in refills %}
-        <tr {% if refill.patient_discontinued %} class="discontinued"
-            {% elif refill.days_missed_display > 0 %} class="overdue"
-            {% endif %}>
+<div class="table-responsive">
+<table class="table table-striped table-bordered">
 
-          <td>{{ refill.unique_id }}</td>
-          <td>{{ refill.age_display }}</td>
-          <td>{{ refill.sex }}</td>
-          <td>{{ refill.facility.name }}</td>
-          <td>{{ refill.last_pickup_date }}</td>
-          <td>{{ refill.months_of_refill_days }}</td>
-          <td>{{ refill.next_appointment }}</td>
-          <td>{{ refill.current_regimen }}</td>
-          <td>{{ refill.case_manager }}</td>
+<thead class="table-dark">
+<tr>
+  <th>ID</th>
+  <th>Age</th>
+  <th>Sex</th>
+  <th>Facility</th>
+  <th>Next Appointment</th>
+  <th>VL Status</th>
+  <th>EAC</th>
+  <th>AHD</th>
+  <th>TPT</th>
+  <th>Action</th>
+</tr>
+</thead>
 
-          <td>{{ refill.tb_status_display }}</td>
+<tbody>
 
-          <!-- ================= FIXED VL STATUS ================= -->
-          <td>
-            {% if refill.is_vl_eligible_program %}
-                <span class="badge bg-success">Eligible</span>
-            {% else %}
-                <span class="badge bg-secondary">Not Eligible</span>
-            {% endif %}
-          </td>
+{% for refill in refills %}
 
-          <td>
-            {% if refill.eac %}
-              {% if refill.post_eac_vl_due_display %}
-                Post-EAC VL Due
-              {% else %}
-                {{ refill.eac_status_display }}
-              {% endif %}
-            {% else %}
-              Not Eligible
-            {% endif %}
-          </td>
+{% with clean_id=refill.unique_id|default_if_none:""|stringformat:"s"|cut:"\n"|cut:"\r"|cut:" "|urlencode %}
 
-          <td>{{ refill.ahd_display }}</td>
-          <td>{{ refill.tpt_status }}</td>
+<tr
+  {% if refill.patient_discontinued == "Y" %}class="discontinued"
+  {% elif refill.vl_due_date and refill.vl_due_date < today %}class="overdue"
+  {% endif %}
+>
 
-          <td>
-            {% if refill.days_missed_display > 0 %}
-              <span class="badge bg-danger">Missed</span><br>
-            {% endif %}
-            {% if refill.patient_discontinued %}
-              <span class="badge bg-warning text-dark">Discontinued</span><br>
-            {% endif %}
-            {% with clean_id=refill.unique_id|cut:'\n'|cut:'\r'|cut:' ' %}
-            <a href="{% url 'refill_add_with_id' unique_id=clean_id %}" class="btn btn-sm btn-primary">
-                Manage Refill
-            </a>
-            {% endwith %}
-          </td>
+  <td>{{ refill.unique_id }}</td>
+  <td>{{ refill.age_display }}</td>
+  <td>{{ refill.sex }}</td>
+  <td>{{ refill.facility.name }}</td>
+  <td>{{ refill.next_appointment|default:"-" }}</td>
 
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="15" class="text-center">No daily refills today</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <td>
+    <span class="badge bg-info text-dark">
+      {{ refill.vl_status_display }}
+    </span>
+
+    {% if "Overdue" in refill.vl_status_display %}
+      <span class="badge bg-danger">URGENT</span>
+    {% elif "Repeat VL Due" in refill.vl_status_display %}
+      <span class="badge bg-warning text-dark">DUE</span>
+    {% endif %}
+  </td>
+
+  <td>{{ refill.eac_status_display }}</td>
+  <td>{{ refill.ahd_display }}</td>
+  <td>{{ refill.tpt_status }}</td>
+
+  <td>
+    {% if clean_id %}
+      <a href="{% url 'refill_add_with_id' unique_id=clean_id %}"
+         class="btn btn-sm btn-primary">
+         Manage Refills
+      </a>
+    {% else %}
+      <span class="text-danger small">Missing ID</span>
+    {% endif %}
+  </td>
+
+</tr>
+
+{% endwith %}
+{% endfor %}
+
+</tbody>
+</table>
 </div>
+
+</div>
+
+{% else %}
+
+<div class="alert alert-warning text-center mt-4">
+    No daily refills found.
+</div>
+
+{% endif %}
 
 {% endblock %}

@@ -29,7 +29,6 @@
         color: #222;
     }
 
-    /* Pastel Colors */
     .pastel-blue { background: #dbeafe; }
     .pastel-green { background: #dcfce7; }
     .pastel-cyan { background: #cffafe; }
@@ -50,11 +49,11 @@
 
 <div class="container mt-4">
 
-    <!-- Facility Filter -->
+    <!-- ================= FACILITY FILTER ================= -->
     <div class="mb-4">
         <form method="get" class="d-flex align-items-center gap-2">
-            <label for="facility">Select Facility:</label>
-            <select name="facility" id="facility" class="form-select w-auto" onchange="this.form.submit()">
+            <label class="fw-bold">Select Facility:</label>
+            <select name="facility" class="form-select w-auto" onchange="this.form.submit()">
                 <option value="">All Facilities</option>
                 {% for facility in facilities %}
                 <option value="{{ facility.id }}"
@@ -67,14 +66,15 @@
     </div>
 
     <!-- ================= REFILLS ================= -->
+    <h4>Refills Cascade</h4>
+
     <div class="row g-3">
-        <h4>Refills Cascade</h4>
 
         <div class="col-md-3">
             <div class="card dashboard-card pastel-blue text-center">
                 <div class="card-body">
                     <h6>Today's Expected</h6>
-                    <h2>{{ daily_expected|default:0 }}</h2>
+                    <h2>{{ daily_expected }}</h2>
                 </div>
             </div>
         </div>
@@ -83,7 +83,7 @@
             <div class="card dashboard-card pastel-green text-center">
                 <div class="card-body">
                     <h6>Today's Refill</h6>
-                    <h2>{{ daily_refills|default:0 }}</h2>
+                    <h2>{{ daily_refills }}</h2>
                 </div>
             </div>
         </div>
@@ -92,7 +92,7 @@
             <div class="card dashboard-card pastel-cyan text-center">
                 <div class="card-body">
                     <h6>Weekly Expected</h6>
-                    <h2>{{ weekly_expected|default:0 }}</h2>
+                    <h2>{{ weekly_expected }}</h2>
                 </div>
             </div>
         </div>
@@ -101,7 +101,7 @@
             <div class="card dashboard-card pastel-yellow text-center">
                 <div class="card-body">
                     <h6>Monthly Expected</h6>
-                    <h2>{{ monthly_expected|default:0 }}</h2>
+                    <h2>{{ monthly_expected }}</h2>
                 </div>
             </div>
         </div>
@@ -110,7 +110,7 @@
             <div class="card dashboard-card pastel-red text-center">
                 <div class="card-body">
                     <h6>Missed This Month</h6>
-                    <h2>{{ monthly_missed_total|default:0 }}</h2>
+                    <h2>{{ monthly_missed_total }}</h2>
                 </div>
             </div>
         </div>
@@ -119,7 +119,7 @@
             <div class="card dashboard-card pastel-gray text-center">
                 <div class="card-body">
                     <h6>IIT (≥28 Days)</h6>
-                    <h2>{{ iit_total|default:0 }}</h2>
+                    <h2>{{ iit_total }}</h2>
                 </div>
             </div>
         </div>
@@ -127,8 +127,8 @@
         <div class="col-md-3">
             <div class="card dashboard-card pastel-pink text-center">
                 <div class="card-body">
-                    <h6>Restarts</h6>
-                    <h2>{{ ahd_count|default:0 }}</h2>
+                    <h6>AHD / Restarts</h6>
+                    <h2>{{ ahd_count }}</h2>
                 </div>
             </div>
         </div>
@@ -136,20 +136,24 @@
         <div class="col-md-3">
             <div class="card dashboard-card pastel-orange text-center">
                 <div class="card-body">
-                    <h6>EAC Eligible</h6>
-                    <h2>{{ eac_count|default:0 }}</h2>
+                    <h6>EAC Active</h6>
+                    <h2>{{ eac_count }}</h2>
                 </div>
             </div>
         </div>
 
-        <!-- ================= VL ================= -->
-        <h4 class="mt-4">VL Cascade</h4>
+    </div>
+
+    <!-- ================= VL ================= -->
+    <h4 class="mt-4">VL Cascade</h4>
+
+    <div class="row g-3">
 
         <div class="col-md-3">
             <div class="card dashboard-card pastel-blue text-center">
                 <div class="card-body">
-                    <h6>VL Samples (All Time)</h6>
-                    <h2>{{ vl_samples|default:0 }}</h2>
+                    <h6>VL Samples</h6>
+                    <h2>{{ vl_samples }}</h2>
                 </div>
             </div>
         </div>
@@ -157,8 +161,8 @@
         <div class="col-md-3">
             <div class="card dashboard-card pastel-cyan text-center">
                 <div class="card-body">
-                    <h6>VL Results (All Time)</h6>
-                    <h2>{{ vl_results|default:0 }}</h2>
+                    <h6>VL Results</h6>
+                    <h2>{{ vl_results }}</h2>
                 </div>
             </div>
         </div>
@@ -166,8 +170,8 @@
         <div class="col-md-3">
             <div class="card dashboard-card pastel-green text-center">
                 <div class="card-body">
-                    <h6>VL Suppression %</h6>
-                    <h2>{{ vl_suppression_rate|default:0 }}%</h2>
+                    <h6>VL Suppression Rate</h6>
+                    <h2>{{ vl_suppression_rate }}%</h2>
                 </div>
             </div>
         </div>
@@ -175,66 +179,64 @@
     </div>
 
     <!-- ================= TB ================= -->
-    <div class="mt-5">
-        <h4>TB Cascade</h4>
+    <h4 class="mt-4">TB Cascade</h4>
 
-        <div class="row g-3">
+    <div class="row g-3">
 
-            <div class="col-md-3">
-                <div class="card dashboard-card pastel-blue text-center">
-                    <div class="card-body">
-                        <h6>TB Screened</h6>
-                        <h2>{{ tb_screened|default:0 }}</h2>
-                    </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card pastel-blue text-center">
+                <div class="card-body">
+                    <h6>TB Screened</h6>
+                    <h2>{{ tb_screened }}</h2>
                 </div>
             </div>
-
-            <div class="col-md-3">
-                <div class="card dashboard-card pastel-yellow text-center">
-                    <div class="card-body">
-                        <h6>Presumptive TB</h6>
-                        <h2>{{ tb_presumptive|default:0 }}</h2>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card dashboard-card pastel-cyan text-center">
-                    <div class="card-body">
-                        <h6>TB Samples Collected</h6>
-                        <h2>{{ tb_sample_collected|default:0 }}</h2>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card dashboard-card pastel-purple text-center">
-                    <div class="card-body">
-                        <h6>TB Results Received</h6>
-                        <h2>{{ tb_result_received|default:0 }}</h2>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card dashboard-card pastel-red text-center">
-                    <div class="card-body">
-                        <h6>TB Positive</h6>
-                        <h2>{{ tb_positive|default:0 }}</h2>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <div class="card dashboard-card pastel-green text-center">
-                    <div class="card-body">
-                        <h6>TB Negative</h6>
-                        <h2>{{ tb_negative|default:0 }}</h2>
-                    </div>
-                </div>
-            </div>
-
         </div>
+
+        <div class="col-md-3">
+            <div class="card dashboard-card pastel-yellow text-center">
+                <div class="card-body">
+                    <h6>Presumptive TB</h6>
+                    <h2>{{ tb_presumptive }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card dashboard-card pastel-cyan text-center">
+                <div class="card-body">
+                    <h6>TB Samples</h6>
+                    <h2>{{ tb_sample_collected }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card dashboard-card pastel-purple text-center">
+                <div class="card-body">
+                    <h6>TB Results</h6>
+                    <h2>{{ tb_result_received }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card dashboard-card pastel-red text-center">
+                <div class="card-body">
+                    <h6>TB Positive</h6>
+                    <h2>{{ tb_positive }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card dashboard-card pastel-green text-center">
+                <div class="card-body">
+                    <h6>TB Negative</h6>
+                    <h2>{{ tb_negative }}</h2>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>

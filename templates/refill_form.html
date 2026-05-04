@@ -8,7 +8,7 @@
 
             <div class="card shadow-sm border-0">
 
-                <!-- HEADER -->
+                <!-- ================= HEADER ================= -->
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
                         {% if form.instance.pk %}
@@ -33,7 +33,9 @@
 
                         <!-- ================= PATIENT INFO ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">Patient Information</div>
+                            <div class="card-header bg-dark text-white">
+                                Patient Information
+                            </div>
                             <div class="card-body">
                                 <div class="row g-3">
 
@@ -63,7 +65,9 @@
 
                         <!-- ================= ART & VL ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">ART & Viral Load</div>
+                            <div class="card-header bg-success text-white">
+                                ART & Viral Load
+                            </div>
                             <div class="card-body">
                                 <div class="row g-3">
 
@@ -82,9 +86,9 @@
                                         {{ form.vl_result }}
                                     </div>
 
-                                    <!-- ================= FIXED VL ELIGIBILITY ================= -->
+                                    <!-- ================= VL STATUS ================= -->
                                     <div class="col-md-6">
-                                        <label class="form-label">VL Eligibility</label><br>
+                                        <label class="form-label">VL Status</label><br>
 
                                         {% if form.instance.is_vl_eligible_program %}
                                             <span class="badge bg-success">Eligible</span>
@@ -93,6 +97,7 @@
                                         {% endif %}
                                     </div>
 
+                                    <!-- ================= SUPPRESSION ================= -->
                                     <div class="col-md-6">
                                         <label class="form-label">VL Suppression</label><br>
 
@@ -121,62 +126,42 @@
 
                         <!-- ================= TB SECTION ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">TB Cascade</div>
+                            <div class="card-header bg-danger text-white">
+                                TB Cascade
+                            </div>
                             <div class="card-body">
                                 <div class="row g-3">
 
-                                    <div class="col-md-4">
-                                        <label class="form-label">TB Screening Date</label>
-                                        {{ form.tb_screening_date }}
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">TB Screening Type</label>
-                                        {{ form.tb_screening_type }}
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">TB Status</label>
-                                        {{ form.tb_status }}
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">TB Sample Collected</label>
-                                        {{ form.tb_sample_collection_date }}
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">TB Result Date</label>
-                                        {{ form.tb_result_received_date }}
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">TB Diagnosis</label>
-                                        {{ form.tb_diagnostic_result }}
-                                    </div>
+                                    <div class="col-md-4">{{ form.tb_screening_date }}</div>
+                                    <div class="col-md-4">{{ form.tb_screening_type }}</div>
+                                    <div class="col-md-4">{{ form.tb_status }}</div>
+                                    <div class="col-md-4">{{ form.tb_sample_collection_date }}</div>
+                                    <div class="col-md-4">{{ form.tb_result_received_date }}</div>
+                                    <div class="col-md-4">{{ form.tb_diagnostic_result }}</div>
 
                                 </div>
                             </div>
                         </div>
 
-                        <!-- ================= EAC SECTION ================= -->
+                        <!-- ================= EAC ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">EAC Section</div>
+                            <div class="card-header bg-warning text-dark">
+                                EAC Section
+                            </div>
                             <div class="card-body">
                                 <div class="row g-3">
 
                                     <div class="col-md-6">
-                                        <label class="form-label">EAC Status</label>
                                         {{ form.eac_status }}
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label">EAC Eligible</label><br>
+                                        <label class="form-label">EAC Eligibility</label><br>
 
                                         {% if form.instance.eac %}
                                             <span class="badge bg-warning text-dark">Yes</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">Not Eligible</span>
+                                            <span class="badge bg-secondary">No</span>
                                         {% endif %}
                                     </div>
 
@@ -184,41 +169,35 @@
                             </div>
                         </div>
 
-                        <!-- ================= AHD SECTION ================= -->
+                        <!-- ================= AHD ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">AHD Section</div>
+                            <div class="card-header bg-secondary text-white">
+                                AHD Section
+                            </div>
                             <div class="card-body">
-                                <div class="row g-3">
 
-                                    <div class="col-md-6">
-                                        <label class="form-label">AHD Eligibility</label><br>
+                                <label class="form-label">AHD Eligibility</label><br>
 
-                                        {% if form.instance.ahd %}
-                                            <span class="badge bg-danger">Eligible</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Not Eligible</span>
-                                        {% endif %}
-                                    </div>
+                                {% if form.instance.ahd %}
+                                    <span class="badge bg-danger">Eligible</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Not Eligible</span>
+                                {% endif %}
 
-                                </div>
                             </div>
                         </div>
 
-                        <!-- ================= TPT SECTION ================= -->
+                        <!-- ================= TPT ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">TPT Section</div>
+                            <div class="card-header bg-info text-white">
+                                TPT Section
+                            </div>
                             <div class="card-body">
+
                                 <div class="row g-3">
 
-                                    <div class="col-md-6">
-                                        <label class="form-label">TPT Start Date</label>
-                                        {{ form.tpt_start_date }}
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">TPT Completion Date</label>
-                                        {{ form.tpt_completion_date }}
-                                    </div>
+                                    <div class="col-md-6">{{ form.tpt_start_date }}</div>
+                                    <div class="col-md-6">{{ form.tpt_completion_date }}</div>
 
                                     <div class="col-md-12">
                                         <label class="form-label">TPT Status</label><br>
@@ -228,110 +207,143 @@
                                     </div>
 
                                 </div>
+
                             </div>
                         </div>
 
                         <!-- ================= REFILL ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">Refill Information</div>
+                            <div class="card-header bg-primary text-white">
+                                Refill Information
+                            </div>
                             <div class="card-body">
+
                                 <div class="row g-3">
 
-                                    <div class="col-md-6">
-                                        <label class="form-label">Last Pickup Date/ Update New Refill</label>
-                                        {{ form.last_pickup_date }}
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">Months of Refill</label>
-                                        {{ form.months_of_refill_days }}
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">Current Regimen</label>
-                                        {{ form.current_regimen }}
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">Case Manager</label>
-                                        {{ form.case_manager }}
-                                    </div>
+                                    <div class="col-md-6">{{ form.last_pickup_date }}</div>
+                                    <div class="col-md-6">{{ form.months_of_refill_days }}</div>
+                                    <div class="col-md-6">{{ form.current_regimen }}</div>
+                                    <div class="col-md-6">{{ form.case_manager }}</div>
 
                                 </div>
+
                             </div>
                         </div>
-
                         <!-- ================= TRACKING ================= -->
                         <div class="card mb-3">
-                            <div class="card-header bg-light">Tracking</div>
+                            <div class="card-header bg-dark text-white">
+                                Tracking Information
+                            </div>
+                        
                             <div class="card-body">
+                        
                                 <div class="row g-3">
-
+                        
+                                    <!-- ================= FOLLOW-UP DATES ================= -->
+                                    <div class="col-12">
+                                        <h6 class="text-muted">Follow-up Tracking Dates</h6>
+                                    </div>
+                        
                                     <div class="col-md-4">
                                         <label class="form-label">Tracking Date 1</label>
                                         {{ form.tracking_date_1 }}
                                     </div>
-
+                        
                                     <div class="col-md-4">
                                         <label class="form-label">Tracking Date 2</label>
                                         {{ form.tracking_date_2 }}
                                     </div>
-
+                        
                                     <div class="col-md-4">
                                         <label class="form-label">Tracking Date 3</label>
                                         {{ form.tracking_date_3 }}
                                     </div>
-
+                        
+                                    <hr class="mt-3">
+                        
+                                    <!-- ================= TRACKED BY ================= -->
+                                    <div class="col-12">
+                                        <h6 class="text-muted">Tracking Outcome</h6>
+                                    </div>
+                        
                                     <div class="col-md-6">
                                         <label class="form-label">Tracked By</label>
                                         {{ form.tracked_by }}
                                     </div>
-
+                        
+                                    <hr class="mt-3">
+                        
+                                    <!-- ================= MISSED + REMARK (TOGETHER) ================= -->
+                                    <div class="col-12">
+                                        <h6 class="text-muted">Missed Visit Details</h6>
+                                    </div>
+                        
                                     <div class="col-md-6">
-                                        <label class="form-label">Reason Missed</label>
+                                        <label class="form-label">Missed Appointment Reason</label>
                                         {{ form.missed_reason }}
                                     </div>
-
-                                    <div class="col-md-12">
-                                        <label class="form-label">Others (specify)</label>
+                        
+                                    <div class="col-md-6">
+                                        <label class="form-label">Remarks / Notes</label>
                                         {{ form.remark }}
                                     </div>
-
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- ================= DISCONTINUED ================= -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">Client Status</div>
-                            <div class="card-body">
-                                <div class="row g-3">
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">Patient Discontinued?</label>
+                        
+                                    <hr class="mt-3">
+                                    <!-- ================= DISCONTINUATION LOGIC ================= -->
+                                    <div class="col-12">
+                                        <h6 class="text-muted">Patient Status</h6>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label">Patient Discontinued</label>
                                         {{ form.patient_discontinued }}
                                     </div>
-
-                                    <div class="col-md-6" id="reason_box" style="display:none;">
-                                        <label class="form-label">Reason Discontinued</label>
-                                        {{ form.discontinued_reason }}
-                                    </div>
-
-                                    <div class="col-md-6" id="date_box" style="display:none;">
-                                        <label class="form-label">Discontinued Date</label>
-                                        {{ form.discontinued_date }}
-                                    </div>
-
-                                    <div class="col-md-6">
+                                    
+                                    <!-- ALWAYS VISIBLE -->
+                                    <div class="col-md-4">
                                         <label class="form-label">Returned Date</label>
                                         {{ form.returned_date }}
                                     </div>
-
+                                    
+                                    <!-- HIDDEN UNTIL YES -->
+                                    <div id="discontinued_only_fields" class="row g-3 mt-2">
+                                    
+                                        <div class="col-md-6">
+                                            <label class="form-label">Discontinued Date</label>
+                                            {{ form.discontinued_date }}
+                                        </div>
+                                    
+                                        <div class="col-md-6">
+                                            <label class="form-label">Discontinued Reason</label>
+                                            {{ form.discontinued_reason }}
+                                        </div>
+                                    
+                                    </div>
+                        
+                                    <!-- ================= STATUS BADGE ================= -->
+                                    <div class="col-md-12 mt-2">
+                        
+                                        <label class="form-label">Current Tracking Status</label><br>
+                        
+                                        {% if form.instance.patient_discontinued == "Y" %}
+                                            <span class="badge bg-danger">Discontinued</span>
+                        
+                                        {% elif form.instance.returned_date %}
+                                            <span class="badge bg-success">Returned to Care</span>
+                        
+                                        {% elif form.instance.tracking_date_1 or form.instance.tracking_date_2 or form.instance.tracking_date_3 %}
+                                            <span class="badge bg-warning text-dark">Under Follow-up</span>
+                        
+                                        {% else %}
+                                            <span class="badge bg-secondary">Not Tracked</span>
+                                        {% endif %}
+                        
+                                    </div>
+                        
                                 </div>
                             </div>
                         </div>
-
-                        <!-- BUTTONS -->
+                        <!-- ================= BUTTONS ================= -->
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{% url 'refill_list' %}" class="btn btn-secondary">Back</a>
                             <button type="submit" class="btn btn-success">Save Record</button>
@@ -344,31 +356,39 @@
 
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
 
-    const select = document.getElementById("id_patient_discontinued");
-    const reason = document.getElementById("reason_box");
-    const date = document.getElementById("date_box");
 
-    function toggleFields() {
-        if (!select) return;
-
-        if (select.value === "Y") {
-            reason.style.display = "block";
-            date.style.display = "block";
-        } else {
-            reason.style.display = "none";
-            date.style.display = "none";
+    <script>
+        function toggleDiscontinuedOnlyFields() {
+            const select = document.querySelector('[name="patient_discontinued"]');
+            const section = document.getElementById('discontinued_only_fields');
+        
+            if (!select || !section) return;
+        
+            if (select.value === "Y") {
+                section.style.display = "flex";
+            } else {
+                section.style.display = "none";
+        
+                // optional UX cleanup when switching back to NO
+                const dateField = document.querySelector('[name="discontinued_date"]');
+                const reasonField = document.querySelector('[name="discontinued_reason"]');
+        
+                if (dateField) dateField.value = "";
+                if (reasonField) reasonField.value = "";
+            }
         }
-    }
-
-    select.addEventListener("change", toggleFields);
-    toggleFields();
-
-});
-</script>
+        
+        document.addEventListener("DOMContentLoaded", function () {
+            toggleDiscontinuedOnlyFields();
+        
+            const select = document.querySelector('[name="patient_discontinued"]');
+            if (select) {
+                select.addEventListener("change", toggleDiscontinuedOnlyFields);
+            }
+        });
+        </script>
+</div>
 
 {% endblock %}

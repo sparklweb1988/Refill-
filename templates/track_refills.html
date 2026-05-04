@@ -61,14 +61,13 @@
             {% endfor %}
         </select>
     </div>
-        <input type="date" name="start_date"
+
+    <input type="date" name="start_date"
         value="{{ request.GET.start_date }}"
-        placeholder="Start Date"
         class="form-control w-auto">
 
-        <input type="date" name="end_date"
+    <input type="date" name="end_date"
         value="{{ request.GET.end_date }}"
-        placeholder="End Date"
         class="form-control w-auto">
 
     <div class="col-md-2">
@@ -81,7 +80,7 @@
 <div class="text-end mb-3">
     <a href="{% url 'export_track_refills' %}?{{ request.GET.urlencode }}"
        class="btn btn-success btn-sm">
-       <i class="bi bi-download"></i> Download Excel
+       Download Excel
     </a>
 </div>
 
@@ -97,8 +96,9 @@
     <th>Refill Date</th>
     <th>Next Appt</th>
 
-    <!-- VL -->
+    <!-- ================= VL (UNIFIED) ================= -->
     <th>VL Status</th>
+    <th>VL Due Date</th>
     <th>VL Result</th>
 
     <th>Tracking 1</th>
@@ -116,30 +116,39 @@
 <tbody>
 
 {% for r in page_obj %}
-<tr {% if r.next_appointment < today %}class="overdue"{% endif %}>
+<tr {% if r.next_appointment and r.next_appointment < today %}class="overdue"{% endif %}>
 
     <td>{{ r.unique_id }}</td>
     <td>{{ r.facility.name }}</td>
     <td>{{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
-    <td>{{ r.next_appointment|date:"Y-m-d" }}</td>
+    <td>{{ r.next_appointment|date:"Y-m-d"|default:"-" }}</td>
 
-    <!-- ================= FIXED VL STATUS (ONLY ELIGIBLE / NOT ELIGIBLE) ================= -->
+    <!-- ================= VL STATUS (SOURCE OF TRUTH) ================= -->
     <td>
-        {% if r.is_vl_eligible_program %}
-            <span class="badge bg-success">Eligible</span>
-        {% else %}
-            <span class="badge bg-secondary">Not Eligible</span>
-        {% endif %}
+        <span class="badge bg-info text-dark">
+            {{ r.vl_status }}
+        </span>
     </td>
 
-    <!-- VL RESULT (UNCHANGED) -->
+    <!-- ================= VL DUE DATE ================= -->
     <td>
-        {% if r.vl_result %}
-            {% if r.is_suppressed %}
+        {{ r.vl_due_date|date:"Y-m-d"|default:"-" }}
+    </td>
+
+    <!-- ================= VL RESULT ================= -->
+    <td>
+        {% if r.vl_result is not None %}
+
+            {% if r.is_suppressed is True %}
                 <span class="badge bg-success">Suppressed (&lt;1000)</span>
-            {% else %}
+
+            {% elif r.is_suppressed is False %}
                 <span class="badge bg-danger">Not Suppressed (≥1000)</span>
+
+            {% else %}
+                <span class="badge bg-warning text-dark">Pending</span>
             {% endif %}
+
         {% else %}
             <span class="badge bg-secondary">No Result</span>
         {% endif %}
@@ -158,7 +167,7 @@
 </tr>
 {% empty %}
 <tr>
-<td colspan="14" class="text-center">No records</td>
+<td colspan="15" class="text-center">No records</td>
 </tr>
 {% endfor %}
 
@@ -171,33 +180,35 @@
 <div class="mobile-view">
 
 {% for r in page_obj %}
-<div class="mobile-card {% if r.next_appointment < today %}overdue{% endif %}">
+<div class="mobile-card {% if r.next_appointment and r.next_appointment < today %}overdue{% endif %}">
 
   <div class="card-title">{{ r.unique_id }}</div>
 
   <div><strong>Facility:</strong> {{ r.facility.name }}</div>
   <div><strong>Refill Date:</strong> {{ r.last_pickup_date|date:"Y-m-d"|default:"-" }}</div>
-  <div><strong>Next:</strong> {{ r.next_appointment|date:"Y-m-d" }}</div>
+  <div><strong>Next:</strong> {{ r.next_appointment|date:"Y-m-d"|default:"-" }}</div>
 
-  <!-- ================= FIXED VL MOBILE ================= -->
-  <div><strong>VL Status:</strong>
-      {% if r.is_vl_eligible_program %}
-          <span class="text-success">Eligible</span>
-      {% else %}
-          <span class="text-secondary">Not Eligible</span>
-      {% endif %}
+  <!-- ================= VL STATUS ================= -->
+  <div>
+    <strong>VL Status:</strong>
+    <span class="text-info">{{ r.vl_status }}</span>
   </div>
 
-  <div><strong>VL Result:</strong>
-      {% if r.vl_result %}
-          {% if r.is_suppressed %}
-              Suppressed
-          {% else %}
-              Not Suppressed
-          {% endif %}
-      {% else %}
-          No Result
-      {% endif %}
+  <!-- ================= VL RESULT ================= -->
+  <div>
+    <strong>VL Result:</strong>
+
+    {% if r.vl_result is not None %}
+        {% if r.is_suppressed is True %}
+            Suppressed
+        {% elif r.is_suppressed is False %}
+            Not Suppressed
+        {% else %}
+            Pending
+        {% endif %}
+    {% else %}
+        No Result
+    {% endif %}
   </div>
 
   <hr>

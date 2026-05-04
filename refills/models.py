@@ -82,9 +82,26 @@ class Refill(models.Model):
         blank=True,
         null=True
     )
+    
+    missed_reason = models.CharField(
+    max_length=255,
+    blank=True,
+    null=True
+    )
+    
+    
+    
+
 
     # ================= BASIC INFO =================
     unique_id = models.CharField(max_length=100)
+    
+    def save(self, *args, **kwargs):
+        if self.unique_id:
+            self.unique_id = self.unique_id.strip()
+        super().save(*args, **kwargs)
+        
+        
     age = models.IntegerField(null=True, blank=True)
     sex = models.CharField(max_length=10, choices=SEX_CHOICES)
 
@@ -181,43 +198,183 @@ class Refill(models.Model):
         if not self.next_appointment:
             return 0
         return max((timezone.now().date() - self.next_appointment).days, 0)
-        
-    # ================= SAFE VL =================
-        
-        
+        # ================= VL CORE ENGINE =================
+
     @property
-    def is_vl_eligible_program(self):
+    def is_active_client(self):
+        return self.current_art_status in ["Active", "Active Restart", "Restart"]
+
+
+    @property
+    def months_on_art(self):
+        if not self.art_start_date:
+            return 0
+        today = timezone.now().date()
+        return (today.year - self.art_start_date.year) * 12 + (today.month - self.art_start_date.month)
+
+
+    @property
+    def is_child(self):
+        return self.age is not None and self.age < 15
+
+
+    @property
+    def is_adult(self):
+        return not self.is_child
+
+
+    # ================= LAST VL DATE =================
+    @property
+    def last_vl_date(self):
+        return self.vl_sample_collection_date
+
+
+    # ================= DUE DATE ENGINE =================
+    @property
+    def vl_due_date(self):
+        """
+        Core VL due calculation (NO hardcoding)
+        """
+
+        if not self.art_start_date:
+            return None
+
+        # First VL (after ART start)
+        if not self.last_vl_date:
+            return self.art_start_date + relativedelta(months=6)
+
+        # Subsequent VL
+        if self.is_child:
+            return self.last_vl_date + relativedelta(months=6)
+        else:
+            return self.last_vl_date + relativedelta(months=12)
+
+
+    # ================= QUARTER ENGINE =================
+    @property
+    def current_quarter(self):
+        today = timezone.now().date()
+
+        if today.month <= 3:
+            return (date(today.year, 1, 1), date(today.year, 3, 31))
+        elif today.month <= 6:
+            return (date(today.year, 4, 1), date(today.year, 6, 30))
+        elif today.month <= 9:
+            return (date(today.year, 7, 1), date(today.year, 9, 30))
+        else:
+            return (date(today.year, 10, 1), date(today.year, 12, 31))
+
+
+    # ================= SAMPLE COUNT CONTROL =================
+    @property
+    def samples_this_year(self):
+        """
+        Since your model stores only ONE VL,
+        this safely enforces your rule.
+        """
+
+        if not self.last_vl_date:
+            return 0
 
         today = timezone.now().date()
 
-        # 1. ACTIVE ONLY
-        if self.current_art_status not in ["Active", "Active Restart", "Restart"]:
+        if self.last_vl_date.year == today.year:
+            return 1
+
+        return 0
+
+
+    # ================= CLINICAL ELIGIBILITY =================
+    @property
+    def is_vl_clinically_eligible(self):
+        """
+        PURE CLINICAL RULES ONLY (no quarter here)
+        """
+
+        # Active
+        if not self.is_active_client:
             return False
 
-        # 2. NOT DISCONTINUED
+        # Not discontinued
         if self.patient_discontinued == "Y":
             return False
 
-        # 3. MUST HAVE ART START
-        if not self.art_start_date:
+        # ≥6 months on ART
+        if self.months_on_art < 6:
             return False
 
-        # 4. MUST BE ≥ 6 MONTHS ON ART (CRITICAL FIX)
-        if (today - self.art_start_date).days < 180:
+        return True
+
+
+    # ================= QUARTER ELIGIBILITY =================
+    @property
+    def is_vl_due_this_quarter(self):
+        """
+        Quarter rule:
+        - Due in current quarter OR
+        - Overdue from past quarter
+        """
+
+        if not self.is_vl_clinically_eligible:
             return False
 
-        # 5. AGE RULE
-        interval_months = 6 if (self.age is not None and self.age < 15) else 12
+        due_date = self.vl_due_date
+        if not due_date:
+            return False
 
-        # 6. NO PREVIOUS VL → ELIGIBLE
-        if not self.vl_sample_collection_date:
-            return True
+        q_start, q_end = self.current_quarter
 
-        # 7. DUE DATE CHECK
-        due_date = self.vl_sample_collection_date + relativedelta(months=interval_months)
+        # ✅ CRITICAL FIX: include overdue patients
+        return due_date <= q_end
 
-        return today >= due_date
 
+    # ================= FINAL PROGRAM ELIGIBILITY =================
+    @property
+    def is_vl_eligible_program(self):
+        """
+        MASTER RULE ENGINE (FINAL)
+        """
+
+        # Must pass quarter rule
+        if not self.is_vl_due_this_quarter:
+            return False
+
+        # ================= SAMPLE CONTROL =================
+        samples = self.samples_this_year
+
+        if self.is_child:
+            if samples >= 2:
+                return False
+        else:
+            if samples >= 1:
+                return False
+
+        # ================= DUPLICATE VL PREVENTION =================
+        due_date = self.vl_due_date
+
+        if self.last_vl_date and due_date and self.last_vl_date >= due_date:
+            return False
+
+        return True
+
+
+    # ================= HUMAN READABLE STATUS =================
+    @property
+    def vl_status(self):
+
+        if not self.is_vl_eligible_program:
+            return "Not Eligible"
+
+        due = self.vl_due_date
+        today = timezone.now().date()
+
+        if due and due < today:
+            return "Overdue VL"
+
+        return "Due This Quarter"
+
+
+    # ================= SUPPRESSION =================
     @property
     def is_suppressed(self):
         if self.vl_result is None:
@@ -262,6 +419,27 @@ class Refill(models.Model):
             return "Overdue"
         return "Ongoing"
 
+    # ================= FIX TRIM =================
+    
+   
+  
+        
+        
+        
+        
+    @property
+    def clean_unique_id(self):
+        return (self.unique_id or "").strip()
+    
+    
+        
+    @property
+    def safe_unique_id(self):
+        if not self.unique_id:
+            return None
+        value = self.unique_id.strip()
+        return value if value else None  
+            
     # ================= IIT =================
     @property
     def iit_status(self):

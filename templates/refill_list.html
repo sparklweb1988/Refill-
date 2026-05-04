@@ -1,57 +1,51 @@
 {% extends 'base.html' %}
+
 {% block content %}
-
-<style>
-  .overdue {
-    background-color: #f8d7da !important;
-  }
-
-  .iit-approaching {
-    background-color: #fff3cd !important;
-  }
-
-  .card-mobile {
-    margin-bottom: 1rem;
-  }
-
-  .badge-mobile {
-    margin-right: 0.5rem;
-  }
-</style>
 
 <div class="container-fluid">
 
-  <!-- Filters -->
+  <!-- ================= FILTERS ================= -->
   <form method="get" class="mb-4 d-flex flex-wrap gap-2">
+
     <select name="facility" class="form-select w-auto" onchange="this.form.submit()">
       <option value="">All Facilities</option>
       {% for facility in facilities %}
-      <option value="{{ facility.id }}" {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+      <option value="{{ facility.id }}"
+        {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
         {{ facility.name }}
       </option>
       {% endfor %}
     </select>
 
+    <select name="case_manager" class="form-select w-auto" onchange="this.form.submit()">
+      <option value="">All Case Managers</option>
+      {% for manager in case_managers %}
+      <option value="{{ manager }}"
+        {% if manager == selected_case_manager %}selected{% endif %}>
+        {{ manager }}
+      </option>
+      {% endfor %}
+    </select>
+
     <input type="text"
-    name="search_unique_id"
-    value="{{ search_unique_id|default:'' }}"
-    placeholder="Search Unique ID"
-    class="form-control w-auto">
+           name="search_unique_id"
+           value="{{ search_unique_id|default:'' }}"
+           placeholder="Search Unique ID"
+           class="form-control w-auto">
 
-    <input type="date"
-        name="start_date"
-        value="{{ selected_start_date }}"
-        placeholder="Start Date"
-        class="form-control w-auto">
-
-    <input type="date"
-        name="end_date"
-        value="{{ selected_end_date }}"
-        placeholder="End Date"
-        class="form-control w-auto">
     <button type="submit" class="btn btn-primary">Filter</button>
+
   </form>
 
+  <!-- ================= DOWNLOAD EXCEL ================= -->
+  <div class="mb-3">
+    <a href="{% url 'export_refills' %}?{{ request.GET.urlencode }}"
+       class="btn btn-success btn-sm">
+      Download Excel
+    </a>
+  </div>
+
+  <!-- ================= PERIODS ================= -->
   {% for period in periods %}
   <div class="card mb-4 shadow-sm">
 
@@ -59,9 +53,10 @@
       <strong>{{ period.name }} Total Expected</strong>
     </div>
 
-    <!-- Desktop Table -->
+    <!-- ================= DESKTOP TABLE ================= -->
     <div class="table-responsive d-none d-md-block">
-      <table class="table table-bordered table-striped">
+      <table class="table table-bordered table-striped table-sm">
+
         <thead class="table-dark">
           <tr>
             <th>Unique ID</th>
@@ -71,173 +66,182 @@
             <th>Case Manager</th>
             <th>Next Appointment</th>
             <th>VL Status</th>
-            <th>EAC Status</th>
-            <th>AHD Eligibility</th>
-            <th>TPT Status</th>
-            <th>TB Status</th>
-
-            <th>Tracking Attempt 1</th>
-            <th>Tracking Attempt 2</th>
-            <th>Tracking Attempt 3</th>
+            <th>VL Due Date</th>
+            <th>VL Suppression</th>
+            <th>EAC</th>
+            <th>AHD</th>
+            <th>TPT</th>
+            <th>TB</th>
+            <th>Tracking 1</th>
+            <th>Tracking 2</th>
+            <th>Tracking 3</th>
             <th>Tracked By</th>
-            <th>Patient Discontinued?</th>
-            <th>Date Discontinued</th>
-            <th>Date Returned</th>
-            <th>Reason for Discontinuation</th>
-            <th>Reason Missed Appointment</th>
-
+            <th>Missed Reason</th>
+            <th>Discontinued</th>
+            <th>Discontinued Reason</th>
+            <th>Discontinued Date</th>
+            <th>Returned Date</th>
+            <th>Remarks</th>
             <th>Action</th>
           </tr>
         </thead>
 
         <tbody>
           {% for refill in period.page_obj %}
-          <tr class="{% if refill.days_missed_display > 0 %}overdue{% endif %}">
+          <tr>
             <td>{{ refill.unique_id }}</td>
-            <td>{{ refill.age }}</td>
-            <td>{{ refill.sex }}</td>
-            <td>{{ refill.facility.name }}</td>
-            <td>{{ refill.case_manager }}</td>
-            <td>{{ refill.next_appointment|date:"Y-m-d" }}</td>
+            <td>{{ refill.age|default:"-" }}</td>
+            <td>{{ refill.sex|default:"-" }}</td>
+            <td>{{ refill.facility.name|default:"-" }}</td>
+            <td>{{ refill.case_manager|default:"-" }}</td>
+            <td>{{ refill.next_appointment|date:"Y-m-d"|default:"-" }}</td>
 
-            <!-- ================= SIMPLIFIED VL STATUS ================= -->
             <td>
-              {% if refill.is_vl_eligible_program %}
-                  <span class="badge bg-success">Eligible</span>
+              <span class="badge bg-info text-dark">
+                {{ refill.vl_status }}
+              </span>
+            </td>
+
+            <td>{{ refill.vl_due_date|date:"Y-m-d"|default:"-" }}</td>
+
+            <td>
+              {% if refill.vl_result is not None %}
+                {% if refill.is_suppressed %}
+                  <span class="badge bg-success">Suppressed</span>
+                {% else %}
+                  <span class="badge bg-danger">Not Suppressed</span>
+                {% endif %}
               {% else %}
-                  <span class="badge bg-secondary">Not Eligible</span>
+                <span class="badge bg-secondary">No Result</span>
               {% endif %}
             </td>
 
-            <!-- EAC -->
-            <td>
-              <span class="badge {% if refill.eac %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                {{ refill.eac_status }}
-              </span>
-            </td>
-
-            <!-- AHD -->
-            <td>
-              <span class="badge {% if refill.ahd %}bg-danger{% else %}bg-secondary{% endif %}">
-                {% if refill.ahd %}Eligible{% else %}Not Eligible{% endif %}
-              </span>
-            </td>
-
-            <!-- TPT -->
-            <td>{{ refill.tpt_status }}</td>
-
-            <!-- TB -->
+            <td>{{ refill.eac|yesno:"Yes,No" }}</td>
+            <td>{{ refill.ahd|yesno:"Eligible,Not Eligible" }}</td>
+            <td>{{ refill.tpt_status|default:"-" }}</td>
             <td>{{ refill.get_tb_status_display|default:"-" }}</td>
 
-            <!-- Tracking -->
-            <td>{{ refill.tracking_date_1|date:"Y-m-d" }}</td>
-            <td>{{ refill.tracking_date_2|date:"Y-m-d" }}</td>
-            <td>{{ refill.tracking_date_3|date:"Y-m-d" }}</td>
-            <td>{{ refill.tracked_by }}</td>
-            <td>{{ refill.patient_discontinued }}</td>
-            <td>{{ refill.discontinued_date|date:"Y-m-d" }}</td>
-            <td>{{ refill.returned_date|date:"Y-m-d" }}</td>
-            <td>{{ refill.discontinued_reason }}</td>
-            <td>{{ refill.remark }}</td>
+            <td>{{ refill.tracking_date_1|date:"Y-m-d"|default:"-" }}</td>
+            <td>{{ refill.tracking_date_2|date:"Y-m-d"|default:"-" }}</td>
+            <td>{{ refill.tracking_date_3|date:"Y-m-d"|default:"-" }}</td>
+            <td>{{ refill.tracked_by|default:"-" }}</td>
+            <td>{{ refill.missed_reason|default:"-" }}</td>
+
+            <td>{{ refill.get_patient_discontinued_display|default:"-" }}</td>
+            <td>{{ refill.discontinued_reason|default:"-" }}</td>
+            <td>{{ refill.discontinued_date|date:"Y-m-d"|default:"-" }}</td>
+            <td>{{ refill.returned_date|date:"Y-m-d"|default:"-" }}</td>
+
+            <td>{{ refill.remark|default:"-" }}</td>
 
             <td>
-              {% if refill.missed_appointment %}
-                <span class="badge bg-danger">Missed</span><br>
-              {% endif %}
-              <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">
-                Manage Refill
+              <a href="{% url 'refill_add_with_id' unique_id=refill.clean_unique_id %}"
+                 class="btn btn-sm btn-primary">
+                Manage Refills
               </a>
             </td>
-
           </tr>
+
           {% empty %}
           <tr>
-            <td colspan="28" class="text-center">No records</td>
+            <td colspan="24" class="text-center">No records found</td>
           </tr>
           {% endfor %}
         </tbody>
+
       </table>
     </div>
 
-    <!-- Mobile Cards -->
-    <div class="d-block d-md-none">
+    <!-- ================= MOBILE CARDS ================= -->
+    <div class="d-block d-md-none p-2">
+
       {% for refill in period.page_obj %}
-      <div class="card card-mobile {% if refill.days_missed_display > 0 %}overdue{% endif %}">
+      <div class="card mb-3 shadow-sm">
         <div class="card-body">
 
-          <p><strong>Unique ID:</strong> {{ refill.unique_id }}</p>
-          <p><strong>Age / Sex:</strong> {{ refill.age }} / {{ refill.sex }}</p>
-          <p><strong>Facility:</strong> {{ refill.facility.name }}</p>
-          <p><strong>Case Manager:</strong> {{ refill.case_manager }}</p>
-          <p><strong>Next Appointment:</strong> {{ refill.next_appointment|date:"Y-m-d" }}</p>
+          <h6 class="fw-bold">{{ refill.unique_id }}</h6>
 
-          <!-- ================= SIMPLIFIED VL STATUS MOBILE ================= -->
-          <p><strong>VL Status:</strong>
-            {% if refill.is_vl_eligible_program %}
-                <span class="text-success">Eligible</span>
+          <p><strong>Age:</strong> {{ refill.age|default:"-" }}</p>
+          <p><strong>Sex:</strong> {{ refill.sex|default:"-" }}</p>
+          <p><strong>Facility:</strong> {{ refill.facility.name|default:"-" }}</p>
+          <p><strong>Case Manager:</strong> {{ refill.case_manager|default:"-" }}</p>
+          <p><strong>Next Appt:</strong> {{ refill.next_appointment|date:"Y-m-d"|default:"-" }}</p>
+
+          <p>
+            <strong>VL Status:</strong>
+            <span class="badge bg-info text-dark">{{ refill.vl_status }}</span>
+          </p>
+
+          <p><strong>VL Due:</strong> {{ refill.vl_due_date|date:"Y-m-d"|default:"-" }}</p>
+
+          <p>
+            <strong>Suppression:</strong>
+            {% if refill.vl_result is not None %}
+              {% if refill.is_suppressed %}
+                <span class="badge bg-success">Suppressed</span>
+              {% else %}
+                <span class="badge bg-danger">Not Suppressed</span>
+              {% endif %}
             {% else %}
-                <span class="text-secondary">Not Eligible</span>
+              <span class="badge bg-secondary">No Result</span>
             {% endif %}
           </p>
 
-          <p><strong>TB Status:</strong> {{ refill.get_tb_status_display|default:"-" }}</p>
+          <p><strong>EAC:</strong> {{ refill.eac|yesno:"Yes,No" }}</p>
+          <p><strong>AHD:</strong> {{ refill.ahd|yesno:"Eligible,Not Eligible" }}</p>
+          <p><strong>TPT:</strong> {{ refill.tpt_status|default:"-" }}</p>
+          <p><strong>TB:</strong> {{ refill.get_tb_status_display|default:"-" }}</p>
 
-          <p><strong>Tracking Attempts:</strong>
-            {{ refill.tracking_date_1|date:"Y-m-d" }},
-            {{ refill.tracking_date_2|date:"Y-m-d" }},
-            {{ refill.tracking_date_3|date:"Y-m-d" }}
-          </p>
+          <p><strong>Tracking 1:</strong> {{ refill.tracking_date_1|date:"Y-m-d"|default:"-" }}</p>
+          <p><strong>Tracking 2:</strong> {{ refill.tracking_date_2|date:"Y-m-d"|default:"-" }}</p>
+          <p><strong>Tracking 3:</strong> {{ refill.tracking_date_3|date:"Y-m-d"|default:"-" }}</p>
 
-          <p><strong>Tracked By:</strong> {{ refill.tracked_by }}</p>
-          <p><strong>Discontinued?:</strong> {{ refill.patient_discontinued }}</p>
-          <p><strong>Date Discontinued:</strong> {{ refill.discontinued_date|date:"Y-m-d" }}</p>
-          <p><strong>Date Returned:</strong> {{ refill.returned_date|date:"Y-m-d" }}</p>
-          <p><strong>Reason:</strong> {{ refill.discontinued_reason }}</p>
-          <p><strong>Remark:</strong> {{ refill.remark }}</p>
+          <p><strong>Tracked By:</strong> {{ refill.tracked_by|default:"-" }}</p>
+          <p><strong>Missed Reason:</strong> {{ refill.missed_reason|default:"-" }}</p>
 
-          <a href="{% url 'refill_add_with_id' unique_id=refill.unique_id %}" class="btn btn-sm btn-primary">
-            Manage Refill
-          </a>
+          <div class="mt-2">
+            <a href="{% url 'refill_add_with_id' unique_id=refill.clean_unique_id %}"
+               class="btn btn-primary btn-sm w-100">
+              Manage Refills
+            </a>
+          </div>
 
         </div>
       </div>
+
       {% empty %}
-      <p class="text-center">No records</p>
+      <div class="text-center">No records found</div>
       {% endfor %}
+
     </div>
 
-    <!-- Pagination -->
-    <div class="d-flex justify-content-between align-items-center p-2">
+    <!-- ================= PAGINATION ================= -->
+    <div class="d-flex justify-content-between p-2">
+
       <span>
         Page {{ period.page_obj.number }} of {{ period.page_obj.paginator.num_pages }}
       </span>
+
       <div>
         {% if period.page_obj.has_previous %}
         <a class="btn btn-sm btn-outline-secondary"
-           href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
+           href="?{{ period.name|lower }}_page={{ period.page_obj.previous_page_number }}">
           Prev
         </a>
         {% endif %}
 
         {% if period.page_obj.has_next %}
         <a class="btn btn-sm btn-outline-secondary"
-           href="?{{ query_params }}&{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
+           href="?{{ period.name|lower }}_page={{ period.page_obj.next_page_number }}">
           Next
         </a>
         {% endif %}
       </div>
+
     </div>
 
   </div>
   {% endfor %}
-
-  <!-- Download Excel -->
-  <div class="text-end mb-4">
-    <a href="{% url 'export_refills' %}?{{ query_params }}"
-       class="btn btn-success btn-sm">
-       <i class="bi bi-download"></i> Download Excel
-    </a>
-  </div>
 
 </div>
 
