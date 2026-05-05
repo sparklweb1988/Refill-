@@ -1,16 +1,30 @@
 from django.contrib import admin
-from .models import Refill, Facility
+from .models import Refill, Facility, FacilityUser
 
-# Unregister if already registered
-if Facility in admin.site._registry:
+
+# ================= FACILITY =================
+# safe unregister (prevents duplicate crash)
+try:
     admin.site.unregister(Facility)
-    
+except admin.sites.NotRegistered:
+    pass
+
+
 @admin.register(Facility)
 class FacilityAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
 
 
+# ================= FACILITY USER =================
+@admin.register(FacilityUser)
+class FacilityUserAdmin(admin.ModelAdmin):
+    list_display = ("user", "facility", "role", "created_at")
+    list_filter = ("facility", "role")
+    search_fields = ("user__username", "facility__name")
+
+
+# ================= REFILL =================
 @admin.register(Refill)
 class RefillAdmin(admin.ModelAdmin):
     list_display = (

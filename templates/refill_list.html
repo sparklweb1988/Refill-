@@ -7,8 +7,10 @@
   <!-- ================= FILTERS ================= -->
   <form method="get" class="mb-4 d-flex flex-wrap gap-2">
 
+    <!-- ================= FACILITY FIX (SUPERUSER SUPPORT) ================= -->
     <select name="facility" class="form-select w-auto" onchange="this.form.submit()">
       <option value="">All Facilities</option>
+
       {% for facility in facilities %}
       <option value="{{ facility.id }}"
         {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>

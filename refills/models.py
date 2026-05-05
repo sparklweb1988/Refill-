@@ -6,6 +6,10 @@ from django.db.models import F, Q
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from datetime import date
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class Facility(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -21,7 +25,59 @@ class Facility(models.Model):
 
 
 
+class FacilityUser(models.Model):
+    ROLE_CHOICES = (
+        ('admin', 'Admin'),
+        ('user', 'User'),
+    )
 
+    # 🔒 One user = one facility ONLY
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="facility_membership"
+    )
+
+    facility = models.ForeignKey(
+        Facility,
+        on_delete=models.CASCADE,
+        related_name="memberships"
+    )
+
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['facility', 'role'], name='one_role_per_facility')
+        ]
+
+    def clean(self):
+        existing_users = FacilityUser.objects.filter(facility=self.facility)
+
+        # Exclude self when updating
+        if self.pk:
+            existing_users = existing_users.exclude(pk=self.pk)
+
+        # 🔒 Max 2 users
+        if existing_users.count() >= 2:
+            raise ValidationError("A facility can only have 2 users (Admin + User).")
+
+        # 🔒 Only one admin
+        if self.role == 'admin' and existing_users.filter(role='admin').exists():
+            raise ValidationError("This facility already has an admin.")
+
+        # 🔒 Only one normal user
+        if self.role == 'user' and existing_users.filter(role='user').exists():
+            raise ValidationError("This facility already has a normal user.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # 🔥 ensures clean() runs
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user} - {self.facility} ({self.role})"
 
 
 

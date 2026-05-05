@@ -32,14 +32,18 @@
 <!-- ================= FILTERS ================= -->
 <form method="get" class="row g-3 mb-4">
 
+    <!-- ✅ FIX: safe facility loop for superuser -->
     <div class="col-12 col-md-3">
         <select name="facility" class="form-select" onchange="this.form.submit()">
             <option value="">All Facilities</option>
+
             {% for facility in facilities %}
-                <option value="{{ facility.id }}"
-                    {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
-                    {{ facility.name }}
-                </option>
+                {% if facility.id %}
+                    <option value="{{ facility.id }}"
+                        {% if facility.id|stringformat:"s" == selected_facility %}selected{% endif %}>
+                        {{ facility.name }}
+                    </option>
+                {% endif %}
             {% endfor %}
         </select>
     </div>
@@ -120,7 +124,7 @@
     <td>{{ refill.vl_sample_collection_date|date:"Y-m-d"|default:"-" }}</td>
     <td>{{ refill.last_pickup_date|date:"Y-m-d"|default:"-" }}</td>
 
-    <!-- ================= VL STATUS (FIXED LOGIC FRIENDLY) ================= -->
+    <!-- ================= VL STATUS (UNCHANGED LOGIC) ================= -->
     <td>
         {% if refill.vl_status_display %}
             <span class="badge bg-info text-dark">
@@ -133,7 +137,7 @@
         {% endif %}
     </td>
 
-    <!-- ================= RESULT ================= -->
+    <!-- ================= RESULT (UNCHANGED LOGIC) ================= -->
     <td>
         {% if refill.vl_sample_collection_date %}
 
